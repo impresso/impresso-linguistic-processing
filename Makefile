@@ -7,7 +7,7 @@
 ##########################################################################################
 # Make setup
 
-SHELL := pipenv run /bin/bash -u
+SHELL := .venv/bin/pipenv run /bin/bash -u
 export SHELLOPTS := errexit:pipefail
 .SECONDARY:
 
@@ -18,7 +18,7 @@ export SHELLOPTS := errexit:pipefail
 
 # Configuration
 LIB ?= lib
-IMPRESSO_LANGIDENT_DATA_DIR ?= language-identification-output
+IMPRESSO_LANGIDENT_DATA_DIR ?= language-identification-data
 IMPRESSO_REBUILT_DATA_DIR ?= rebuilt-data
 BUILD_DIR ?= build.d
 REBUILT_DIR ?= /srv/scratch2/climpresso/s3data/canonical-rebuilt-release
