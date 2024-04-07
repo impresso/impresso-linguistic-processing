@@ -1,0 +1,4 @@
+/build/
+/.venv/
+Makefile.local.mk
+*.d/
