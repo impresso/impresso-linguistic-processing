@@ -20,7 +20,7 @@ export SHELLOPTS := errexit:pipefail
 LIB ?= lib
 IMPRESSO_LANGIDENT_DATA_DIR ?= language-identification-output
 IMPRESSO_REBUILT_DATA_DIR ?= rebuilt-data
-BUILD_DIR ?= linguistic-preprocessing-output
+BUILD_DIR ?= build.d
 REBUILT_DIR ?= /srv/scratch2/climpresso/s3data/canonical-rebuilt-release
 
 
