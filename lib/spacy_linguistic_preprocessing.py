@@ -109,7 +109,7 @@ def get_timestamp() -> str:
 LANG2MODEL = {
     "de": "de_core_news_md",
     "fr": "fr_core_news_md",
-    "en": "en-core-web-md",
+    "en": "en_core_web_md",
     "lb": "./models/lb_model/model-best/",
 }
 
