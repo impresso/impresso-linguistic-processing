@@ -67,7 +67,8 @@ $(BUILD_DIR)/%.jsonl.bz2: $(IMPRESSO_REBUILT_DATA_DIR)/%.jsonl.bz2 $(IMPRESSO_LA
 	      $< \
 		  --lid $(word 2,$^) \
 		  -o $@ \
-		  2> $@.log
+		  2> $@.log \
+	|| rm -f $@
 
 
 update-requirements:
