@@ -7,7 +7,7 @@
 ##########################################################################################
 # Make setup
 
-SHELL := .venv/bin/pipenv run /bin/bash -u
+SHELL:=/bin/bash
 export SHELLOPTS := errexit:pipefail
 .SECONDARY:
 
