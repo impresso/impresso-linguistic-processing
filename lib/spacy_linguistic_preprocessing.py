@@ -10,10 +10,16 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Generator, Dict, Optional
+from typing import Generator, Dict, Optional, Any
+
+import dotenv
+import jsonschema
+
+dotenv.load_dotenv()
+
 
 import spacy
-from smart_open import open
+import smart_open
 
 log = logging.getLogger(__name__)
 
@@ -39,18 +45,42 @@ TAG_MAP = {
 }
 
 
-def get_next_doc(infile: str) -> Generator[Dict[str, any], None, None]:
+def get_s3_client():  # -> boto3.client
+    """Returns a boto3.client object for interacting with S3.
+
+    Returns:
+        boto3.client: A boto3.client object for interacting with S3.
+    """
+    import boto3  # noqa: E402
+
+    boto3.setup_default_session(
+        aws_access_key_id=os.getenv("SE_ACCESS_KEY"),
+        aws_secret_access_key=os.getenv("SE_SECRET_KEY"),
+    )
+
+    return boto3.client(
+        "s3", endpoint_url=os.getenv("SE_HOST_URL", "https://os.zhdk.cloud.switch.ch/")
+    )
+
+
+def get_next_doc(
+    infile: str, client: Optional[Any] = None
+) -> Generator[Dict[str, any], None, None]:
     """
     Generates documents from a file line by line.
 
     Args:
         infile (str): The path to the input file.
+        client (Optional[Any]): The S3 client to use for reading the file. Defaults to None.
 
     Yields:
         Generator[Dict[str, any], None, None]: A generator yielding documents as
             dictionaries.
     """
-    with open(infile, "r") as instream:
+    transport_params = {}
+    if client is not None:
+        transport_params = {"client": client}
+    with smart_open.open(infile, "r", transport_params=transport_params) as instream:
         for line in instream:
             yield json.loads(line)
 
@@ -66,24 +96,34 @@ def output_doc(doc: Dict[str, any], out_file: "IO[str]") -> None:
     print(json.dumps(doc, ensure_ascii=False, separators=(",", ":")), file=out_file)
 
 
-def read_langident(path: str) -> Dict[str, str]:
+def read_langident(path: str, client: Optional[Any]) -> Dict[str, str]:
     """
     Reads language identification results from a file.
 
     Args:
-        path (str): The path to the file containing language identification results.
-
+        path (str): The (s3) path to the file containing language identification results.
+        client (Optional[Any]): The S3 client to use for reading the file. Defaults to None.
     Returns:
         Dict[str, str]: A dictionary mapping document IDs to their identified languages.
     """
+
     result = {}
-    with open(path, "r", encoding="utf-8") as f:
-        for l in f:
+    transport_params = {}
+    if client is not None:
+        transport_params = {"client": client}
+
+    with smart_open.open(
+        path,
+        "r",
+        encoding="utf-8",
+        transport_params=transport_params,
+    ) as f:
+        for line in f:
             try:
-                contentitem = json.loads(l)
+                contentitem = json.loads(line)
                 result[contentitem["id"]] = contentitem.get("lg")
             except KeyError:
-                log.error("Problem %s", l)
+                log.error("Problem %s", line)
     return result
 
 
@@ -94,15 +134,7 @@ def get_timestamp() -> str:
     Returns:
         str: The generated timestamp.
     """
-    time = datetime.now()
-    timestamp = "%d-%d-%dT%02d:%02d:%02d" % (
-        time.year,
-        time.month,
-        time.day,
-        time.hour,
-        time.minute,
-        time.second,
-    )
+    timestamp = datetime.utcnow().isoformat(sep="T", timespec="seconds") + "Z"
     return timestamp
 
 
@@ -123,10 +155,30 @@ class LinguisticProcessing:
             args (argparse.Namespace): The command line arguments.
         """
         self.args = args
+        self.S3_CLIENT = (
+            get_s3_client()
+            if self.args.INPUT.startswith("s3://") or self.args.lid.startswith("s3://")
+            else None
+        )
         self.language_proc_units: Dict[str, spacy.language.Language] = {}
         self.lang_ident_data: Dict[str, str] | None = (
-            read_langident(self.args.lid) if self.args.lid else None
+            read_langident(self.args.lid, client=self.S3_CLIENT)
+            if self.args.lid
+            else None
         )
+        if self.args.validate:
+            with smart_open.open(
+                "https://impresso.github.io/impresso-schemas/json/linguistic_annotation/ling_spacy.schema.json",
+                "r",
+            ) as f:
+                self.schema = json.load(f)
+            self.schema_validator = jsonschema.Draft7Validator(
+                schema=self.schema,
+                resolver=jsonschema.RefResolver(
+                    referrer=self.schema,
+                    base_uri="https://impresso.github.io/impresso-schemas/json/linguistic_annotation/",
+                ),
+            )
 
         self.stats = collections.Counter()
 
@@ -141,7 +193,7 @@ class LinguisticProcessing:
         if lang not in self.language_proc_units and lang in lang2model:
             nlp = spacy.load(lang2model.get(lang, lang), disable=["parser"])
             nlp.add_pipe("sentencizer", first=True)
-            nlp.max_length = 500000
+            nlp.max_length = 100000
             self.language_proc_units[lang] = nlp
             log.info("LOADED PIPELINE %s %s", nlp, nlp.pipeline)
         else:
@@ -229,10 +281,23 @@ class LinguisticProcessing:
         log.info("Working on file %s %s %s", infile, collection, year)
 
         with open(self.args.output_file, "w") as out_file:
-            for i, json_obj in enumerate(get_next_doc(infile), start=1):
+            for i, json_obj in enumerate(
+                get_next_doc(infile, client=self.S3_CLIENT), start=1
+            ):
                 if json_obj is None:
                     continue
                 processed_doc = self.process_doc(json_obj, timestamp)
+                if self.args.validate and processed_doc is not None:
+                    try:
+                        self.schema_validator.validate(processed_doc)
+                        log.debug("Document %s is valid", processed_doc["id"])
+                    except jsonschema.ValidationError as e:
+                        log.error("Validation error: %s", e)
+                        exit(1)
+                    except jsonschema.SchemaError as e:
+                        log.error("Schema error: %s", e)
+                        exit
+
                 if processed_doc is not None:
                     output_doc(processed_doc, out_file)
                 if i % 200 == 0:
@@ -253,7 +318,11 @@ if __name__ == "__main__":
         "-o", "--output-file", default="out.jsonl", help="Path to output file"
     )
     parser.add_argument("--min-doc-length", type=int, default=200)
-
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="validate final lang identification JSON against schema (default %(default)s)",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
