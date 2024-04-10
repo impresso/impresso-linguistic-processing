@@ -2,3 +2,4 @@
 /.venv/
 Makefile.local.mk
 *.d/
+.env
