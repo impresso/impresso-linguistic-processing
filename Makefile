@@ -63,9 +63,10 @@ impresso-linguistic-processing-target : $(impresso-linguistic-processing-files)
 
 $(BUILD_DIR)/%.jsonl.bz2: $(IMPRESSO_REBUILT_DATA_DIR)/%.jsonl.bz2 $(IMPRESSO_LANGIDENT_DATA_DIR)/%.jsonl.bz2
 	mkdir -p $(@D) &&\
-	python3 $(LIB)/spacy_linguistic_preprocessing.py \
+	python3 $(LIB)/spacy_linguistic_processing.py \
 	      $< \
 		  --lid $(word 2,$^) \
+		  --validate \
 		  -o $@ \
 		  2> $@.log \
 	|| rm -f $@
