@@ -225,10 +225,21 @@ class LinguisticProcessing:
                 self.stats["LANG-FROM-LID"] += 1
         if lang is None:
             lang = json_obj.get("lg")
-            self.stats["LANG-FROM-DOC"] += 1
+            if lang:
+                self.stats["LANG-FROM-DOC"] += 1
+            else:
+                self.stats["LANG-NONE"] += 1
+                log.warning(
+                    "Skipping %s. Language is None. Text: `%s`",
+                    docid,
+                    json_obj.get("ft", "")[:100],
+                )
+                return None
 
         if lang not in LANG2MODEL:
-            log.error("No language %s found for %s", lang, docid)
+            log.error(
+                "No spacy model for language %s found: content item: %s", lang, docid
+            )
             return None
         if lang not in self.language_proc_units:
             self.create_lpu(lang)
@@ -242,6 +253,7 @@ class LinguisticProcessing:
             log.warning(
                 "Document %s too short (%d): %s", docid, len(full_text), full_text
             )
+            self.stats["SHORT-DOC"] += 1
             return None
 
         preprocessed_text = []
@@ -326,7 +338,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     logging.basicConfig(
-        level=logging.INFO, format="%(asctime)-15s %(levelname)s: %(message)s"
+        level=logging.INFO,
+        format="%(asctime)-15s %(filename)s:%(lineno)d %(levelname)s: %(message)s",
     )
 
     # Launching application...
