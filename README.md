@@ -37,7 +37,9 @@ $ python3.11 -mpipenv shell
 
 # Running the pipeline
 
-Adapt the local paths for the input and output directories in the `Makefile.local.mk` and run the following command:
+Adapt the local paths for the input and output directories according in the
+`Makefile.local.mk` (see `Makefile.local.mk.sample` for an example).
+and run the following command:
 
 ```sh
 make impresso-linguistic-processing-target -j N

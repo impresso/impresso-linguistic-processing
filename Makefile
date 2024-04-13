@@ -8,6 +8,7 @@
 # Make setup
 
 SHELL:=/bin/bash
+
 export SHELLOPTS := errexit:pipefail
 .SECONDARY:
 
@@ -22,6 +23,7 @@ IMPRESSO_LANGIDENT_DATA_DIR ?= language-identification-data
 IMPRESSO_REBUILT_DATA_DIR ?= rebuilt-data
 BUILD_DIR ?= build.d
 REBUILT_DIR ?= /srv/scratch2/climpresso/s3data/canonical-rebuilt-release
+
 
 S3_BUCKET_LINGPROC_PATH ?= 42-processed-data-final/lingproc
 
@@ -76,6 +78,7 @@ $(BUILD_DIR)/%.jsonl.bz2: $(IMPRESSO_REBUILT_DATA_DIR)/%.jsonl.bz2 $(IMPRESSO_LA
 		  -o $@ \
 		  2> $@.log \
 	|| rm -f $@
+
 
 
 #: Actually upload the impresso linguistic information to s3 impresso bucket
