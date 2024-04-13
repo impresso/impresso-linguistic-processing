@@ -23,7 +23,9 @@ IMPRESSO_REBUILT_DATA_DIR ?= rebuilt-data
 BUILD_DIR ?= build.d
 REBUILT_DIR ?= /srv/scratch2/climpresso/s3data/canonical-rebuilt-release
 
+S3_BUCKET_LINGPROC_PATH ?= 42-processed-data-final/lingproc
 
+S3_LINGPROC_VERSION ?= v2024.04.04
 include lib/debug.mk
 
 help:
@@ -70,6 +72,14 @@ $(BUILD_DIR)/%.jsonl.bz2: $(IMPRESSO_REBUILT_DATA_DIR)/%.jsonl.bz2 $(IMPRESSO_LA
 		  -o $@ \
 		  2> $@.log \
 	|| rm -f $@
+
+
+#: Actually upload the impresso linguistic information to s3 impresso bucket
+upload-release-to-s3: impresso-linguistic-processing-target 
+	rclone --verbose copy $(BUILD_DIR)/ s3-impresso:$(S3_BUCKET_LINGPROC_PATH)/$(S3_LINGPROC_VERSION) --include "*.jsonl.bz2" --ignore-existing \
+
+
+#	&& rclone --verbose check $(BUILD_DIR)/$(LID_S3_LINGPROC_VERSIONVERSION)/ s3-impresso:$(S3_BUCKET_LINGPROC_PATH)/$(LID_VERSION)/
 
 
 update-requirements:
