@@ -253,9 +253,10 @@ class LinguisticProcessing:
             log.warning(
                 "Document %s too short (%d): %s", docid, len(full_text), full_text
             )
-            self.stats["SHORT-DOC"] += 1
+            self.stats["CONTENT-ITEMS-SHORT"] += 1
             return None
-
+        else:
+            self.stats["CONTENT-ITEMS-OK"] += 1
         preprocessed_text = []
         doc = self.language_proc_units[lang](full_text)
 
