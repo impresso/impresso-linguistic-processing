@@ -26,13 +26,17 @@ REBUILT_DIR ?= /srv/scratch2/climpresso/s3data/canonical-rebuilt-release
 S3_BUCKET_LINGPROC_PATH ?= 42-processed-data-final/lingproc
 
 S3_LINGPROC_VERSION ?= v2024.04.04
+
+# used for debugging variables from the make process
 include lib/debug.mk
 
 help:
-	# Available targets:
-	@echo "  impresso-linguistic-processing-target # Process all impresso rebuilt files."
-	@echo "  update-requirements # Update the requirements.txt file with the current pipenv requirements."
-	@echo "  test-txt # Test the linguistic preprocessing output."
+	@echo "Usage: make <target>"
+	@echo "Targets:"
+	@echo "  impresso-linguistic-processing-target      # Process all impresso rebuilt files."
+	@echo "  update-requirements                        # Update the requirements.txt file with the current pipenv requirements."
+	@echo "  help                                       # Show this help message"
+
 .DEFAULT_GOAL := help
 PHONY_TARGETS += help
 

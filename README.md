@@ -1,16 +1,20 @@
 # Information on impresso linguistic preprocessing
+
 This repository implements the following linguistic processing steps:
- - POS tagging
- - NER tagging
- - improved lemmatization
+
+- POS tagging
+- NER tagging
+- improved lemmatization
 
 We do this for the following languages:
- - fr
- - de
- - lb (only POS tagging)
- - en
+
+- fr
+- de
+- lb (only POS tagging)
+- en
 
 ## Prerequisites
+
 The build process has been tested on modern Linux and macOS systems and requires
 Python 3.11. Under Debian, make sure to have the following packages installed:
 
@@ -32,10 +36,18 @@ $ python3.11 -mpipenv shell
 ```
 
 # Running the pipeline
-Adapt the local paths for the input and output directories in the `Makefile` and run the following command:
+
+Adapt the local paths for the input and output directories in the `Makefile.local.mk` and run the following command:
+
 ```sh
 make impresso-linguistic-processing-target -j N
 ```
 
-# Uploading to impresso S3
-@TODO
+# Uploading to impresso S3 bucket
+
+Ensure that the environment variables SE_ACCESS_KEY and SE_SECRET_KEY for access to the
+s3 impresso infrastructure are set, e.g. by setting them in a local .env files.
+
+```sh
+make upload-to-s3
+```
