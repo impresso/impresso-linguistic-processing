@@ -4,10 +4,11 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-impresso-commons ="*"
+
 [packages]
-smart-open = "*"
+smart-open= {extras = ["s3"], version = "==6.4"}
 spacy = "==3.6"
+python-dotenv = "*"
 spacy-lookups-data = "*"
 de-core-news-md = {file = "https://github.com/explosion/spacy-models/releases/download/de_core_news_md-3.6.0/de_core_news_md-3.6.0.tar.gz"}
 # https://github.com/explosion/spacy-models/releases/tag/fr_core_news_md-3.6.0
@@ -15,5 +16,12 @@ fr-core-news-md = {file = "https://github.com/explosion/spacy-models/releases/do
 en-core-web-md = {file = "https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.6.0/en_core_web_md-3.6.0.tar.gz"}
 # luxembourgish model is in repository and comes from https://github.com/PeterGilles/Luxembourgish-language-resources
 
+boto3 = "*"
+jsonschema = "*"
+# pin it to a version 1 (otherwise it will install version 2)
+numpy = "==1.26.*"
 [requires]
 python_version = "3.11"
+
+[pipenv]
+allow_prereleases = true
