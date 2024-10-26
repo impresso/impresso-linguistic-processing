@@ -267,7 +267,7 @@ class LinguisticProcessing:
                 tok_dict = {
                     "t": tok.text,
                     "p": (
-                        TAG_MAP.get(tok.pos_, "X") if lang == "lb" else tok.pos_
+                        TAG_MAP.get(tok.tag_, "X") if lang == "lb" else tok.pos_
                     ),  # Use TAG_MAP for Luxembourgish
                     "o": tok.idx,
                 }
@@ -334,7 +334,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--validate",
         action="store_true",
-        help="validate final lang identification JSON against schema (default %(default)s)",
+        help=(
+            "validate final lang identification JSON against schema (default"
+            " %(default)s)"
+        ),
     )
     args = parser.parse_args()
 
