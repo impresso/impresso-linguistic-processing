@@ -4,6 +4,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+ipykernel = "*"
 
 [packages]
 smart-open= {extras = ["s3"], version = "==6.4"}
@@ -15,11 +16,11 @@ de-core-news-md = {file = "https://github.com/explosion/spacy-models/releases/do
 fr-core-news-md = {file = "https://github.com/explosion/spacy-models/releases/download/fr_core_news_md-3.6.0/fr_core_news_md-3.6.0.tar.gz"}
 en-core-web-md = {file = "https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.6.0/en_core_web_md-3.6.0.tar.gz"}
 # luxembourgish model is in repository and comes from https://github.com/PeterGilles/Luxembourgish-language-resources
-
 boto3 = "*"
 jsonschema = "*"
 # pin it to a version 1 (otherwise it will install version 2)
 numpy = "==1.26.*"
+
 [requires]
 python_version = "3.11"
 
