@@ -98,7 +98,9 @@ test-txt:
 	jq -r '.sents[] | [(.tok[] | .t + "/" + .p + "/" + (if .l == "" or .l == null then .t else .l end))] | join(" ")'
 	
 
-
+lb-spacy-package:
+	mkdir -p models-package
+	pipenv run python -m spacy package models/lb_model/model-best/ models-package/
 
 # declare all phony targets
 .PHONY: $(PHONY_TARGETS)
