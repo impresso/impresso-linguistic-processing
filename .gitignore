@@ -6,4 +6,4 @@ Makefile.local.mk
 *.log
 out.txt
 testbuild/
-models-packages/*
+models-package/*
