@@ -10,7 +10,7 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Generator, Dict, Optional, Any
+from typing import Generator, Dict, Optional, Any, IO
 
 import dotenv
 import jsonschema
@@ -157,7 +157,8 @@ class LinguisticProcessing:
         self.args = args
         self.S3_CLIENT = (
             get_s3_client()
-            if self.args.INPUT.startswith("s3://") or self.args.lid.startswith("s3://")
+            if self.args.INPUT.startswith("s3://")
+            or str(self.args.lid).startswith("s3://")
             else None
         )
         self.language_proc_units: Dict[str, spacy.language.Language] = {}
@@ -216,7 +217,12 @@ class LinguisticProcessing:
             Optional[Dict[str, any]]: The processed document or None if processing fails.
         """
         docid = json_obj["id"]
-        if self.lang_ident_data:
+        lang = None
+
+        if self.args.language:
+            lang = self.args.language
+            self.stats["LANG-FROM-ARG"] += 1
+        elif self.lang_ident_data:
 
             lang = self.lang_ident_data.get(
                 docid
@@ -245,7 +251,7 @@ class LinguisticProcessing:
             self.create_lpu(lang)
 
         try:
-            full_text = json_obj["ft"]
+            full_text = json_obj[self.args.text_property]
         except KeyError:
             log.error("No full text found for %s", docid)
             return None
@@ -328,6 +334,9 @@ if __name__ == "__main__":
     parser.add_argument(help="Path to impresso rebuilt file", dest="INPUT")
     parser.add_argument("--lid", help="Path to language identification file")
     parser.add_argument(
+        "--language", help="Specify a language code to use for all items"
+    )
+    parser.add_argument(
         "-o", "--output-file", default="out.jsonl", help="Path to output file"
     )
     parser.add_argument("--min-doc-length", type=int, default=200)
@@ -338,6 +347,11 @@ if __name__ == "__main__":
             "validate final lang identification JSON against schema (default"
             " %(default)s)"
         ),
+    )
+    parser.add_argument(
+        "--text-property",
+        default="ft",
+        help="Specify the JSON property that contains the full text (default: 'ft')",
     )
     args = parser.parse_args()
 
