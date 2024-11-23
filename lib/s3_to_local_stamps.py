@@ -220,10 +220,7 @@ class LocalStampCreator(object):
         )
 
         self.stats["files_created"] += 1
-        log.info(
-            f"Created stamp file: '{local_file_path}' with modification date:"
-            f" {last_modified}"
-        )
+        log.info(f"'{local_file_path}' created. Last modification: {last_modified}")
 
 
 if __name__ == "__main__":
