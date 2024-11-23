@@ -296,7 +296,7 @@ $(OUT_LOCAL_PATH_PROCESSED_DATA).last_synced:
 # of the build process. We discard errors as the path or file might not exist yet.
 local-rebuilt-stamp-files := \
     $(shell ls -r $(IN_LOCAL_PATH_REBUILT)/*.jsonl.bz2.stamp 2> /dev/null \
-      |$(if $(NEWSPAPER_YEAR_SORTING),$(NEWSPAPER_YEAR_SORTING),cat))
+    | $(if $(NEWSPAPER_YEAR_SORTING),$(NEWSPAPER_YEAR_SORTING),cat))
   $(call log.debug, local-rebuilt-stamp-files)
 
 define local_rebuilt_stamp_to_local_processed_file
@@ -305,17 +305,19 @@ endef
 
 
 local-processed-files := \
- $(call local_rebuilt_stamp_to_local_processed_file,$(local-rebuilt-stamp-files))
+    $(call local_rebuilt_stamp_to_local_processed_file,$(local-rebuilt-stamp-files))
 
   $(call log.debug, local-processed-files)
 
-processing-target: sync $(local-processed-files)
+# Note: make sync is needed in a separate process to prepare the data for the build! This target just takes whatever the
+# current situation regarding the data is and processes it. It does not sync the data from s3 to the local directory.
+processing-target: $(local-processed-files)
 
 
 # Rule to process a single newspaper
 $(OUT_LOCAL_PATH_PROCESSED_DATA)/%.jsonl.bz2: $(IN_LOCAL_PATH_REBUILT)/%.jsonl.bz2.stamp $(IN_LOCAL_PATH_PROCESSED_DATA)/%.jsonl.bz2
 	mkdir -p $(@D) && \
-	python3 $(LIB)/spacy_linguistic_processing.py \
+	python3 lib/spacy_linguistic_processing.py \
 	      $(call local_to_s3,$<,.stamp) \
 		  --lid $(word 2,$^) \
 		  --validate \
@@ -325,70 +327,22 @@ $(OUT_LOCAL_PATH_PROCESSED_DATA)/%.jsonl.bz2: $(IN_LOCAL_PATH_REBUILT)/%.jsonl.b
 
 
 
-# Configuration
-LIB ?= lib
-IMPRESSO_LANGIDENT_DATA_DIR ?= language-identification-data
-IMPRESSO_REBUILT_DATA_DIR ?= rebuilt-data
-
-
-
-
 help:
 	@echo "Usage: make <target>"
 	@echo "Targets:"
-	@echo "  impresso-linguistic-processing-target      # Process all impresso rebuilt files."
+	@echo "  setup                                      # Prepare the local directories"
+	@echo "  newspaper                                  # Sync the data from the S3 bucket to the local directory and process the text embeddings for a single newspaper"
+	@echo "  each                                       # Process the text embeddings for each newspaper found in the file $(NEWSPAPERS_TO_PROCESS_FILE)"
+	@echo "  sync                                       # Sync the data from the S3 bucket to the local directory"
+	@echo "  resync                                     # Remove the local synchronization file stamp and redoes everything, ensuring a full sync with the remote server."
+	@echo "  clean-sync                                 # Remove the local synchronization file stamp and redoes everything, ensuring a full sync with the remote server."
 	@echo "  update-requirements                        # Update the requirements.txt file with the current pipenv requirements."
+	@echo "  test-txt                                   # Test the output of the linguistic preprocessing"
+	@echo "  lb-spacy-package                           # Package the Luxembourgish spaCy model"
 	@echo "  help                                       # Show this help message"
 
 .DEFAULT_GOAL := help
 PHONY_TARGETS += help
-
-##########################################################################################
-# Make variables for impresso data infrastructure
-# Variables in uppercase and underscores can be overwritten by the user at build time
-
-# make sure that this directory points to a local copy of the impresso s3 data containers
-# only read access is needed
-IMPRESSO_REBUILT_DATA_DIR ?= rebuilt-data
-
-
-# all known collection acronyms from the file system
-COLLECTION_ACRONYMS ?= $(notdir $(wildcard $(IMPRESSO_REBUILT_DATA_DIR)/*))
-
-
-# get path of all impresso rebuilt files
-impresso-rebuilt-files := \
-	$(wildcard \
-		$(foreach ca,$(COLLECTION_ACRONYMS),\
-			$(IMPRESSO_REBUILT_DATA_DIR)/$(ca)/*.jsonl.bz2\
-		)\
-	)
-
-
-impresso-linguistic-processing-files := \
-	$(subst $(IMPRESSO_REBUILT_DATA_DIR),$(BUILD_DIR)/,$(impresso-rebuilt-files))
-
-impresso-linguistic-processing-target : $(impresso-linguistic-processing-files)
-
-# $(BUILD_DIR)/%.jsonl.bz2: $(IMPRESSO_REBUILT_DATA_DIR)/%.jsonl.bz2 $(IMPRESSO_LANGIDENT_DATA_DIR)/%.jsonl.bz2
-# 	mkdir -p $(@D) &&\
-# 	python3 $(LIB)/spacy_linguistic_processing.py \
-# 	      $< \
-# 		  --lid $(word 2,$^) \
-# 		  --validate \
-# 		  -o $@ \
-# 		  2> $@.log \
-# 	|| rm -f $@
-
-
-
-#: Actually upload the impresso linguistic information to s3 impresso bucket
-upload-release-to-s3: impresso-linguistic-processing-target 
-	rclone --verbose copy $(BUILD_DIR)/ s3-impresso:$(S3_BUCKET_LINGPROC_PATH)/$(S3_LINGPROC_VERSION) --include "*.jsonl.bz2" --ignore-existing \
-
-
-#	&& rclone --verbose check $(BUILD_DIR)/$(LID_S3_LINGPROC_VERSIONVERSION)/ s3-impresso:$(S3_BUCKET_LINGPROC_PATH)/$(LID_VERSION)/
-
 
 update-requirements:
 	pipenv requirements > requirements.txt
