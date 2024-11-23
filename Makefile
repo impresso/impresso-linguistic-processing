@@ -26,6 +26,7 @@ export SHELLOPTS:=errexit:pipefail
 # Load local config if it exists (ignore silently if it does not exists)
 -include config.local.mk
 
+
 # Set the logging level: DEBUG, INFO, WARNING, ERROR
 LOGGING_LEVEL ?= INFO
   $(call log.info, LOGGING_LEVEL)
@@ -37,6 +38,13 @@ include lib/log.mk
 MAKE_PARALLEL_OPTION ?= --jobs 2
   $(call log.debug, MAKE_PARALLEL_OPTION)
 
+
+
+ifndef GIT_VERSION
+GIT_VERSION := $(shell git describe --tags --always)
+endif
+  $(call log.info, GIT_VERSION)
+export GIT_VERSION
 
 ###
 # SETTING DEFAULT VARIABLES FOR THE PROCESSING
@@ -323,23 +331,24 @@ $(OUT_LOCAL_PATH_PROCESSED_DATA)/%.jsonl.bz2: $(IN_LOCAL_PATH_REBUILT)/%.jsonl.b
 		  --validate \
 		  -o $@ \
 		  2> $@.log \
-	|| rm -f $@
+	|| { rm -f $@ ; cat $@.log ; exit 1 ; }
 
-
+clean-build:
+	rm -rvf $(BUILD_DIR)
 
 help:
 	@echo "Usage: make <target>"
 	@echo "Targets:"
-	@echo "  setup                                      # Prepare the local directories"
-	@echo "  newspaper                                  # Sync the data from the S3 bucket to the local directory and process the text embeddings for a single newspaper"
-	@echo "  each                                       # Process the text embeddings for each newspaper found in the file $(NEWSPAPERS_TO_PROCESS_FILE)"
-	@echo "  sync                                       # Sync the data from the S3 bucket to the local directory"
-	@echo "  resync                                     # Remove the local synchronization file stamp and redoes everything, ensuring a full sync with the remote server."
-	@echo "  clean-sync                                 # Remove the local synchronization file stamp and redoes everything, ensuring a full sync with the remote server."
-	@echo "  update-requirements                        # Update the requirements.txt file with the current pipenv requirements."
-	@echo "  test-txt                                   # Test the output of the linguistic preprocessing"
-	@echo "  lb-spacy-package                           # Package the Luxembourgish spaCy model"
-	@echo "  help                                       # Show this help message"
+	@echo "  setup                 # Prepare the local directories"
+	@echo "  newspaper             # Sync the data from the S3 bucket to the local directory and process the text embeddings for a single newspaper"
+	@echo "  each                  # Process the text embeddings for each newspaper found in the file $(NEWSPAPERS_TO_PROCESS_FILE)"
+	@echo "  sync                  # Sync the data from the S3 bucket to the local directory"
+	@echo "  resync                # Remove the local synchronization file stamp and redoes everything, ensuring a full sync with the remote server."
+	@echo "  clean-sync            # Remove the local synchronization file stamp and redoes everything, ensuring a full sync with the remote server."
+	@echo "  update-requirements   # Update the requirements.txt file with the current pipenv requirements."
+	@echo "  test-txt              # Test the output of the linguistic preprocessing"
+	@echo "  lb-spacy-package      # Package the Luxembourgish spaCy model"
+	@echo "  help                  # Show this help message"
 
 .DEFAULT_GOAL := help
 PHONY_TARGETS += help
