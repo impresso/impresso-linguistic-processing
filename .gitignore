@@ -7,3 +7,4 @@ Makefile.local.mk
 out.txt
 testbuild/
 models-package/*
+config.local.mk
