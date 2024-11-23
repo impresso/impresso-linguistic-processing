@@ -75,7 +75,8 @@ def parse_s3_path(s3_path: str) -> Tuple[str, str]:
         Tuple[str, str]: The bucket name and prefix.
 
     Raises:
-        ValueError: If the S3 path does not start with "s3://" or if it does not include both a bucket name and prefix.
+        ValueError: If the S3 path does not start with "s3://" or if it does not include
+        both a bucket name and prefix.
 
     >>> parse_s3_path("s3://mybucket/myfolder/myfile.txt")
     ('mybucket', 'myfolder/myfile.txt')
@@ -101,7 +102,8 @@ class LocalStampCreator(object):
 
     Attributes:
         args (Any): Command-line arguments object.
-        s3_resource (boto3.resources.factory.s3.ServiceResource): The S3 service resource.
+        s3_resource (boto3.resources.factory.s3.ServiceResource): The S3 service
+            resource.
 
     Methods:
         run(): Orchestrates the stamp file creation process.
