@@ -167,6 +167,7 @@ class LinguisticProcessing:
             if self.args.lid
             else None
         )
+        self.model_versions: Dict[str, str] = {}  # Store model versions
         if self.args.validate:
             with smart_open.open(
                 "https://impresso.github.io/impresso-schemas/json/linguistic_annotation/ling_spacy.schema.json",
@@ -196,6 +197,7 @@ class LinguisticProcessing:
             nlp.add_pipe("sentencizer", first=True)
             nlp.max_length = 100000
             self.language_proc_units[lang] = nlp
+            self.model_versions[lang] = nlp.meta["version"]  # Store model version
             log.info("LOADED PIPELINE %s %s", nlp, nlp.pipeline)
         else:
             log.error("No model found for %s", lang)
