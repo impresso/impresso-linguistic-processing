@@ -1,26 +1,24 @@
 {
-  "lang":"lb",
-  "name":"pipeline",
-  "version":"0.0.0",
-  "spacy_version":">=3.6.0,<3.7.0",
-  "description":"",
-  "author":"",
-  "email":"",
-  "url":"",
-  "license":"",
-  "spacy_git_version":"6fc153a26",
-  "vectors":{
-    "width":0,
-    "vectors":0,
-    "keys":0,
-    "name":null,
-    "mode":"default"
+  "lang": "lb",
+  "name": "lux-tagger-July2023",
+  "version": "3.6.0",
+  "spacy_version": ">=3.6.0,<3.7.0",
+  "description": "POS tagger for Luxembourgish using spaCy.",
+  "author": "Peter Gilles https://twitter.com/PeterGilles",
+  "email": "",
+  "url": "https://github.com/PeterGilles/Luxembourgish-language-resources/tree/master/lux-tagger-July2023/model-best",
+  "license": "ask Peter Gilles",
+  "spacy_git_version": "6fc153a26",
+  "vectors": {
+    "width": 0,
+    "vectors": 0,
+    "keys": 0,
+    "name": null,
+    "mode": "default"
   },
-  "labels":{
-    "tok2vec":[
-
-    ],
-    "tagger":[
+  "labels": {
+    "tok2vec": [],
+    "tagger": [
       "$",
       "ADJ",
       "APPR",
@@ -40,20 +38,12 @@
       "V"
     ]
   },
-  "pipeline":[
-    "tok2vec",
-    "tagger"
-  ],
-  "components":[
-    "tok2vec",
-    "tagger"
-  ],
-  "disabled":[
-
-  ],
-  "performance":{
-    "tag_acc":0.9805800104,
-    "tok2vec_loss":5.9017458835,
-    "tagger_loss":232.9640509449
+  "pipeline": ["tok2vec", "tagger"],
+  "components": ["tok2vec", "tagger"],
+  "disabled": [],
+  "performance": {
+    "tag_acc": 0.9805800104,
+    "tok2vec_loss": 5.9017458835,
+    "tagger_loss": 232.9640509449
   }
 }
