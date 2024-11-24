@@ -10,14 +10,20 @@ import collections
 import json
 import logging
 import os
-from datetime import datetime
 from typing import Any, Dict, Generator, IO, Optional
 
-import boto3
 import dotenv
 import jsonschema
 import smart_open
 import spacy
+
+from s3_to_local_stamps import (
+    keep_timestamp_only,
+    parse_s3_path,
+    get_s3_client,
+    s3_file_exists,
+    get_timestamp,
+)
 
 dotenv.load_dotenv()
 
@@ -51,24 +57,6 @@ LB_TAG_MAP = {
     "NUM": "NUM",
     "_SP": "SPACE",
 }
-
-
-def get_s3_client() -> boto3.client:
-    """Returns a boto3.client object for interacting with S3.
-
-    Returns:
-        boto3.client: A boto3.client object for interacting with S3.
-    """
-    import boto3  # noqa: E402
-
-    boto3.setup_default_session(
-        aws_access_key_id=os.getenv("SE_ACCESS_KEY"),
-        aws_secret_access_key=os.getenv("SE_SECRET_KEY"),
-    )
-
-    return boto3.client(
-        "s3", endpoint_url=os.getenv("SE_HOST_URL", "https://os.zhdk.cloud.switch.ch/")
-    )
 
 
 def get_next_doc(
@@ -134,17 +122,6 @@ def read_langident(path: str, client: Optional[Any] = None) -> Dict[str, str]:
             except KeyError:
                 log.error("Problem %s", line)
     return result
-
-
-def get_timestamp() -> str:
-    """
-    Generates a timestamp in a specific format.
-
-    Returns:
-        str: The generated timestamp.
-    """
-    timestamp = datetime.utcnow().isoformat(sep="T", timespec="seconds") + "Z"
-    return timestamp
 
 
 LANG2MODEL = {
@@ -342,7 +319,19 @@ class LinguisticProcessing:
         year = infile.split("-")[-1][:4]
         log.info("Working on file %s %s %s", infile, collection, year)
 
-        with open(self.args.output_file, "w") as out_file:
+        # Check if the output file already exists in S3
+        if self.args.quit_if_s3_output_exists and self.args.output_path.startswith(
+            "s3://"
+        ):
+            bucket, key = self.args.output_path[5:].split("/", 1)
+            if s3_file_exists(self.S3_CLIENT, bucket, key):
+                log.info(
+                    "Output file %s already exists in S3. Exiting.",
+                    self.args.output_path,
+                )
+                return
+
+        with open(self.args.output_path, "w") as out_file:
             for i, json_obj in enumerate(
                 get_next_doc(infile, client=self.S3_CLIENT), start=1
             ):
@@ -367,7 +356,38 @@ class LinguisticProcessing:
 
         for k in self.stats:
             log.info("%s: %d", k, self.stats[k])
-        log.info("Done with file %s", infile)
+        log.info("File %s successfully processed.", infile)
+
+        # Upload the output file to S3 if specified
+        if self.args.s3_output_path:
+            bucket, key = self.args.s3_output_path[5:].split("/", 1)
+            self.S3_CLIENT.upload_file(self.args.output_path, bucket, key)
+            log.info("Uploaded output file to %s", self.args.s3_output_path)
+
+            if self.args.keep_timestamp_only:
+                keep_timestamp_only(self.args.output_path)
+
+    def upload_file_to_s3(self, local_file_path: str, s3_path: str) -> None:
+        """Uploads a local file to an S3 bucket if it doesn't already exist."""
+        bucket, key = parse_s3_path(s3_path)
+        if self.file_exists_in_s3(bucket, key):
+            log.warning(
+                f"The file s3://{bucket}/{key} already exists. Skipping upload."
+            )
+            return
+
+        try:
+            log.info(f"Uploading {local_file_path} to s3://{bucket}/{key}")
+            self.s3_resource.Bucket(bucket).upload_file(local_file_path, key)
+            log.info(f"Successfully uploaded {local_file_path} to s3://{bucket}/{key}")
+        except FileNotFoundError:
+            log.error(f"The file {local_file_path} was not found.")
+        except self.s3_resource.meta.client.exceptions.NoCredentialsError:
+            log.error("Credentials not available.")
+        except self.s3_resource.meta.client.exceptions.PartialCredentialsError:
+            log.error("Incomplete credentials provided.")
+        except Exception as e:
+            log.error(f"An error occurred: {e}")
 
 
 if __name__ == "__main__":
@@ -380,7 +400,7 @@ if __name__ == "__main__":
         "--language", help="Specify a language code to use for all items"
     )
     parser.add_argument(
-        "-o", "--output-file", default="out.jsonl", help="Path to output file"
+        "-o", "--output-path", default="out.jsonl", help="Path to output file"
     )
     parser.add_argument("--min-doc-length", type=int, default=50)
     parser.add_argument(
@@ -402,6 +422,26 @@ if __name__ == "__main__":
             "Set the git version to include in the output. If not set, the GIT_VERSION"
             " environment variable is used."
             "Normally the output of `git describe --tags --always` is used."
+        ),
+    )
+    parser.add_argument(
+        "--quit-if-s3-output-exists",
+        action="store_true",
+        help="Quit if the output file already exists in the specified S3 bucket",
+    )
+    parser.add_argument(
+        "--s3-output-path",
+        help=(
+            "S3 path to upload the output file after processing or check if it already"
+            " exists"
+        ),
+    )
+    parser.add_argument(
+        "--keep-timestamp-only",
+        action="store_true",
+        help=(
+            "After uploading to S3, keep only the timestamp of the local output file"
+            " for data efficiency. Defaults: %(default)s"
         ),
     )
     args = parser.parse_args()
