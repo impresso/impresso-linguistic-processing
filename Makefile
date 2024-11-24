@@ -203,6 +203,8 @@ PROCESSING_QUIT_IF_S3_OUTPUT_EXISTS ?= --quit-if-s3-output-exists
 #PROCESSING_QUIT_IF_S3_OUTPUT_EXISTS ?=
   $(call log.debug, PROCESSING_QUIT_IF_S3_OUTPUT_EXISTS)
 
+PROCESSING_QUIET_OPTION ?= --quiet
+  $(call log.debug, PROCESSING_QUIET_OPTION)
 
 ###
 # TARGETS FOR THE BUILD PROCESS
@@ -333,12 +335,16 @@ $(OUT_LOCAL_PATH_PROCESSED_DATA)/%.jsonl.bz2: $(IN_LOCAL_PATH_REBUILT)/%.jsonl.b
 		  $(PROCESSING_KEEP_TIMESTAMP_ONLY_OPTION) \
 		  $(PROCESSING_QUIT_IF_S3_OUTPUT_EXISTS) \
 		  $(PROCESSING_S3_OUTPUT_DRY_RUN) \
+		  $(PROCESSING_QUIET_OPTION) \
 		  -o $@ \
-		  2> $@.log \
-	|| { rm -f $@ ; cat $@.log ; exit 1 ; }
+		  --log-file $@.log.gz \
+	|| { rm -f $@ ; exit 1 ; }
+
 
 clean-build:
 	rm -rvf $(BUILD_DIR)
+
+
 # help: Show this help message
 help:
 	@echo "Usage: make <target>"
