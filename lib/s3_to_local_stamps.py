@@ -11,7 +11,7 @@ variables include the access key, secret key, and host URL for the S3 service.
 
 The module can be run as a standalone script. It accepts command-line arguments for the
 S3 bucket name, file prefix to match in the bucket, verbosity level for logging, and an
-optional log file.
+optional log- file.
 """
 
 __author__ = "simon.clematide@uzh.ch"
@@ -30,6 +30,110 @@ from smart_open import open
 from dotenv import load_dotenv
 
 log = logging.getLogger(__name__)
+
+
+def get_timestamp() -> str:
+    """
+    Generates a timestamp in a specific format.
+
+    Returns:
+        str: The generated timestamp.
+    """
+    timestamp = datetime.datetime.utcnow().isoformat(sep="T", timespec="seconds") + "Z"
+    return timestamp
+
+
+def keep_timestamp_only(
+    input_path: str, timestamp: datetime.datetime | None = None
+) -> None:
+    """
+    Truncates the local file to zero length and updates its metadata to the given UTC timestamp.
+
+    Args:
+        input_path (str): The path to the file to be truncated and timestamped.
+        timestamp (datetime, optional): The UTC timestamp to set for the file's metadata.
+                                        If not provided, the current UTC time will be used.
+
+    Raises:
+        Exception: If an error occurs during the truncation or timestamp update process.
+
+    Example:
+        >>> import tempfile
+        >>> from datetime import datetime, timezone
+        >>> with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+        ...     tmp_file_path = tmp_file.name
+        >>> keep_timestamp_only(tmp_file_path, datetime(2023, 1, 1, tzinfo=timezone.utc))
+        >>> os.path.getsize(tmp_file_path) == 0
+        True
+        >>> os.path.getmtime(tmp_file_path) == datetime(2023, 1, 1, tzinfo=timezone.utc).timestamp()
+        True
+        >>> os.remove(tmp_file_path)
+    """
+
+    try:
+        # Truncate the file to zero length
+        with open(input_path, "w", encoding="utf-8"):
+            # opening with 'w' truncates the file
+            log.info("Truncating %s and setting its timestamp metadata.", input_path)
+
+        # Use the provided timestamp or default to the current UTC time
+        if timestamp is None:
+            timestamp = datetime.datetime.now(datetime.timezone.utc)
+
+        # Convert the timestamp to a Unix timestamp (seconds since epoch)
+        timestamp_epoch = timestamp.timestamp()
+
+        # Update the file's modification and access time to the specified timestamp
+        os.utime(input_path, (timestamp_epoch, timestamp_epoch))
+
+        log.info(
+            "File %s has been truncated and its timestamp updated to %s.",
+            input_path,
+            timestamp.isoformat(),
+        )
+    except Exception as e:
+        log.error("Failed to truncate %s: %s", input_path, e)
+        raise
+
+
+def get_s3_client() -> "boto3.client":
+    """Returns a boto3.client object for interacting with S3.
+
+    Returns:
+        boto3.client: A boto3.client object for interacting with S3.
+    """
+    import boto3  # noqa: E402
+
+    boto3.setup_default_session(
+        aws_access_key_id=os.getenv("SE_ACCESS_KEY"),
+        aws_secret_access_key=os.getenv("SE_SECRET_KEY"),
+    )
+
+    return boto3.client(
+        "s3", endpoint_url=os.getenv("SE_HOST_URL", "https://os.zhdk.cloud.switch.ch/")
+    )
+
+
+def s3_file_exists(s3_client, bucket: str, key: str) -> bool:
+    """
+    Check if a file exists in an S3 bucket.
+
+    Args:
+        s3_client: The boto3 S3 client.
+        bucket (str): The name of the S3 bucket.
+        key (str): The key of the file in the S3 bucket.
+
+    Returns:
+        bool: True if the file exists, False otherwise.
+    """
+    try:
+        s3_client.head_object(Bucket=bucket, Key=key)
+        return True
+    except s3_client.exceptions.ClientError as e:
+        if e.response["Error"]["Code"] == "404":
+            return False
+        else:
+            raise
 
 
 def get_s3_resource(
