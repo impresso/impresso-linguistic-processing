@@ -22,7 +22,9 @@ from s3_to_local_stamps import (
     parse_s3_path,
     get_s3_client,
     s3_file_exists,
+    upload_file_to_s3,
     get_timestamp,
+    have_same_md5,
 )
 
 dotenv.load_dotenv()
@@ -225,19 +227,21 @@ class LinguisticProcessing:
 
         full_text = json_obj.get(self.args.text_property)
         if full_text is None:
-            log.warning(
+            log.debug(
                 "Full text property `%s` unavailable in `%s`",
                 self.args.text_property,
                 docid,
             )
+            self.stats["CONTENT-ITEMS-NO-TEXT"] += 1
             return None
+
         full_text_len = len(full_text)
         if full_text_len == 0:
-            log.info("Empty text: %s", docid)
+            log.debug("Empty text: %s", docid)
             self.stats["CONTENT-ITEMS-EMPTY"] += 1
             return None
         elif full_text_len < self.args.min_doc_length:
-            log.info("Short text (%s chars): %s ", full_text_len, docid)
+            log.debug("Short text (%s chars): %s ", full_text_len, docid)
             self.stats["CONTENT-ITEMS-SHORT"] += 1
             return None
 
@@ -261,14 +265,12 @@ class LinguisticProcessing:
                 log.warning(
                     "Skipping %s. Language is None. Text: `%s`",
                     docid,
-                    json_obj.get("ft", "")[:50],
+                    full_text[:50],
                 )
                 return None
 
         if lang not in LANG2MODEL:
-            log.error(
-                "No spacy model for language %s found: content item: %s", lang, docid
-            )
+            log.error("No spacy model for language %s: content item: %s", lang, docid)
             return None
         if lang not in self.language_proc_units:
             self.create_lpu(lang)
@@ -283,9 +285,7 @@ class LinguisticProcessing:
             for tok in sent:
                 tok_dict = {
                     "t": tok.text,
-                    "p": (
-                        LB_TAG_MAP.get(tok.tag_, "X") if lang == "lb" else tok.pos_
-                    ),  # Use TAG_MAP for Luxembourgish
+                    "p": (LB_TAG_MAP.get(tok.tag_, "X") if lang == "lb" else tok.pos_),
                     "o": tok.idx,
                 }
                 if tok.text != tok.lemma_:
@@ -314,80 +314,108 @@ class LinguisticProcessing:
         Runs the linguistic processing on all documents.
         """
         infile = self.args.INPUT
-        timestamp = get_timestamp()
-        collection = os.path.basename(infile).split("-")[0]
-        year = infile.split("-")[-1][:4]
-        log.info("Working on file %s %s %s", infile, collection, year)
+        outfile: str = self.args.output_path
+        s3_outfile: str = self.args.s3_output_path
+        timestamp: str = get_timestamp()
+        collection: str = os.path.basename(infile).split("-")[0]
+        year: str = infile.split("-")[-1][:4]
 
-        # Check if the output file already exists in S3
-        if self.args.quit_if_s3_output_exists and self.args.output_path.startswith(
-            "s3://"
-        ):
-            bucket, key = self.args.output_path[5:].split("/", 1)
-            if s3_file_exists(self.S3_CLIENT, bucket, key):
-                log.info(
-                    "Output file %s already exists in S3. Exiting.",
-                    self.args.output_path,
+        log.info("Processing %s %s %s", infile, collection, year)
+
+        # Check if the output file already exists in S3 and avoid lengthy processing
+        if self.args.quit_if_s3_output_exists and s3_outfile:
+            if s3_file_exists(self.S3_CLIENT, s3_outfile):
+                log.warning(
+                    "%s exists. Exiting without processing %s", s3_outfile, infile
                 )
                 return
+            else:
+                log.info("%s does not exist. Proceeding with processing.", s3_outfile)
 
-        with open(self.args.output_path, "w") as out_file:
-            for i, json_obj in enumerate(
-                get_next_doc(infile, client=self.S3_CLIENT), start=1
-            ):
+        with open(outfile, "w") as out:
+            doc_iter = enumerate(get_next_doc(infile, client=self.S3_CLIENT), start=1)
+            for i, json_obj in doc_iter:
                 if json_obj is None:
                     continue
                 processed_doc = self.process_doc(json_obj, timestamp)
                 if self.args.validate and processed_doc is not None:
-                    try:
-                        self.schema_validator.validate(processed_doc)
-                        log.debug("Document %s is valid", processed_doc["id"])
-                    except jsonschema.ValidationError as e:
-                        log.error("Validation error: %s", e)
-                        exit(1)
-                    except jsonschema.SchemaError as e:
-                        log.error("Schema error: %s", e)
+                    if not self.validate_document(processed_doc):
                         exit(1)
 
                 if processed_doc is not None:
-                    output_doc(processed_doc, out_file)
-                if i % 200 == 0:
+                    output_doc(processed_doc, out)
+                if i % 1000 == 0:
                     log.info("Processed %d documents", i)
+        log.info("Processed %d processable documents", i)
 
         for k in self.stats:
             log.info("%s: %d", k, self.stats[k])
-        log.info("File %s successfully processed.", infile)
+        log.info("File %s successfully processed locally.", infile)
 
         # Upload the output file to S3 if specified
-        if self.args.s3_output_path:
-            bucket, key = self.args.s3_output_path[5:].split("/", 1)
-            self.S3_CLIENT.upload_file(self.args.output_path, bucket, key)
-            log.info("Uploaded output file to %s", self.args.s3_output_path)
+        if s3_outfile:
+            upload_file_to_s3(self.S3_CLIENT, outfile, s3_outfile)
 
             if self.args.keep_timestamp_only:
-                keep_timestamp_only(self.args.output_path)
+                keep_timestamp_only(outfile)
 
     def upload_file_to_s3(self, local_file_path: str, s3_path: str) -> None:
-        """Uploads a local file to an S3 bucket if it doesn't already exist."""
+        """Uploads a local file to an S3 bucket if it doesn't already exist and verifies the upload."""
         bucket, key = parse_s3_path(s3_path)
-        if self.file_exists_in_s3(bucket, key):
+        if s3_file_exists(self.S3_CLIENT, bucket, key):
             log.warning(
-                f"The file s3://{bucket}/{key} already exists. Skipping upload."
+                "The file s3://%s/%s already exists. Skipping upload.", bucket, key
             )
             return
 
         try:
-            log.info(f"Uploading {local_file_path} to s3://{bucket}/{key}")
-            self.s3_resource.Bucket(bucket).upload_file(local_file_path, key)
-            log.info(f"Successfully uploaded {local_file_path} to s3://{bucket}/{key}")
+            # Upload the file to S3
+            log.info("Uploading %s to s3://%s/%s", local_file_path, bucket, key)
+            self.S3_CLIENT.upload_file(local_file_path, bucket, key)
+            log.info(
+                "Successfully uploaded %s to s3://%s/%s", local_file_path, bucket, key
+            )
+
+            # Verify the upload by comparing MD5 checksums
+            if have_same_md5(local_file_path, s3_path, self.S3_CLIENT):
+                log.info("File %s successfully verified after upload.", local_file_path)
+            else:
+                log.error(
+                    "MD5 checksum mismatch: local file %s != s3 file %s",
+                    local_file_path,
+                    s3_path,
+                )
+                raise ValueError("MD5 checksum mismatch after upload.")
+
         except FileNotFoundError:
-            log.error(f"The file {local_file_path} was not found.")
-        except self.s3_resource.meta.client.exceptions.NoCredentialsError:
+            log.error("The file %s was not found.", local_file_path)
+        except self.S3_CLIENT.exceptions.NoCredentialsError:
             log.error("Credentials not available.")
-        except self.s3_resource.meta.client.exceptions.PartialCredentialsError:
+        except self.S3_CLIENT.exceptions.PartialCredentialsError:
             log.error("Incomplete credentials provided.")
         except Exception as e:
-            log.error(f"An error occurred: {e}")
+            log.error("An error occurred: %s", e)
+
+    def validate_document(self, document: Dict[str, Any]) -> bool:
+        """
+        Validates a document against the schema.
+
+        Args:
+            document (Dict[str, Any]): The document to validate.
+
+        Returns:
+            bool: True if the document is valid, False otherwise.
+        """
+        try:
+            self.schema_validator.validate(document)
+            log.debug("Document %s is valid", document["id"])
+            return True
+        except jsonschema.ValidationError as e:
+            log.error("Validation error: %s", e)
+            return False
+        except jsonschema.SchemaError as e:
+            log.error("Schema error: %s", e)
+            return False
 
 
 if __name__ == "__main__":
@@ -444,11 +472,37 @@ if __name__ == "__main__":
             " for data efficiency. Defaults: %(default)s"
         ),
     )
+    parser.add_argument(
+        "--log-file",
+        help=(
+            "Path to the log file (compression depending on smart_open and file"
+            " extension)"
+        ),
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Do not log to console, only to the log file (if specified).",
+    )
     args = parser.parse_args()
 
+    # Configure logging
+    if args.quiet:
+        log_handlers = []
+    else:
+        log_handlers = [logging.StreamHandler()]
+    if args.log_file:
+
+        class SmartFileHandler(logging.FileHandler):
+            def _open(self):
+                return smart_open.open(self.baseFilename, self.mode, encoding="utf-8")
+
+        log_handlers.append(SmartFileHandler(args.log_file))
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)-15s %(filename)s:%(lineno)d %(levelname)s: %(message)s",
+        handlers=log_handlers,
+        force=True,
     )
 
     # Launching application...
