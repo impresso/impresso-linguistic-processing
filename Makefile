@@ -182,26 +182,26 @@ OUT_LOCAL_PATH_PROCESSED_DATA := $(BUILD_DIR)/$(OUT_S3_BUCKET_PROCESSED_DATA)/$(
 # S3 STORAGE UPDATE SETTINGS
 
 # Prevent any output to s3 even if s3-output-path is set
-# EMBEDDING_S3_OUTPUT_DRY_RUN?= --s3-output-dry-run
+# PROCESSING_S3_OUTPUT_DRY_RUN?= --s3-output-dry-run
 # To disable the dry-run mode, comment the line above and uncomment the line below
-EMBEDDING_S3_OUTPUT_DRY_RUN ?=
-  $(call log.debug, EMBEDDING_S3_OUTPUT_DRY_RUN)
+PROCESSING_S3_OUTPUT_DRY_RUN ?=
+  $(call log.debug, PROCESSING_S3_OUTPUT_DRY_RUN)
 
 # Keep only the local timestam output files after uploading (only relevant when
 # uploading to s3)
 #
-EMBEDDING_KEEP_TIMESTAMP_ONLY_OPTION ?= --keep-timestamp-only
+PROCESSING_KEEP_TIMESTAMP_ONLY_OPTION ?= --keep-timestamp-only
 # To disable the keep-timestamp-only mode, comment the line above and uncomment the line below
-#EMBEDDING_KEEP_TIMESTAMP_ONLY_OPTION ?= 
-  $(call log.debug, EMBEDDING_KEEP_TIMESTAMP_ONLY_OPTION)
+#PROCESSING_KEEP_TIMESTAMP_ONLY_OPTION ?= 
+  $(call log.debug, PROCESSING_KEEP_TIMESTAMP_ONLY_OPTION)
 
 
 # Quit the processing if the output file already exists in s3
 # double check if the output file exists in s3 and quit if it does
-EMBEDDING_QUIT_IF_S3_OUTPUT_EXISTS ?= --quit-if-s3-output-exists
+PROCESSING_QUIT_IF_S3_OUTPUT_EXISTS ?= --quit-if-s3-output-exists
 # To disable the quit-if-s3-output-exists mode, comment the line above and uncomment the line below
-#EMBEDDING_QUIT_IF_S3_OUTPUT_EXISTS ?=
-  $(call log.debug, EMBEDDING_QUIT_IF_S3_OUTPUT_EXISTS)
+#PROCESSING_QUIT_IF_S3_OUTPUT_EXISTS ?=
+  $(call log.debug, PROCESSING_QUIT_IF_S3_OUTPUT_EXISTS)
 
 
 ###
@@ -329,13 +329,17 @@ $(OUT_LOCAL_PATH_PROCESSED_DATA)/%.jsonl.bz2: $(IN_LOCAL_PATH_REBUILT)/%.jsonl.b
 	      $(call local_to_s3,$<,.stamp) \
 		  --lid $(word 2,$^) \
 		  --validate \
+		  --s3-output-path $(call local_to_s3,$@) \
+		  $(PROCESSING_KEEP_TIMESTAMP_ONLY_OPTION) \
+		  $(PROCESSING_QUIT_IF_S3_OUTPUT_EXISTS) \
+		  $(PROCESSING_S3_OUTPUT_DRY_RUN) \
 		  -o $@ \
 		  2> $@.log \
 	|| { rm -f $@ ; cat $@.log ; exit 1 ; }
 
 clean-build:
 	rm -rvf $(BUILD_DIR)
-
+# help: Show this help message
 help:
 	@echo "Usage: make <target>"
 	@echo "Targets:"
@@ -349,6 +353,7 @@ help:
 	@echo "  test-txt              # Test the output of the linguistic preprocessing"
 	@echo "  lb-spacy-package      # Package the Luxembourgish spaCy model"
 	@echo "  help                  # Show this help message"
+	# Add more help messages here
 
 .DEFAULT_GOAL := help
 PHONY_TARGETS += help
