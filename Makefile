@@ -227,7 +227,7 @@ newspaper:
 # Process the text embeddings for each newspaper found in the file $(NEWSPAPERS_TO_PROCESS_FILE)
 each:
 	for np in $(file < $(NEWSPAPERS_TO_PROCESS_FILE)) ; do \
-		$(MAKE) NEWSPAPER="$$np" all  ; \
+		$(MAKE) NEWSPAPER="$$np" newspaper  ; \
 	done
 
 
