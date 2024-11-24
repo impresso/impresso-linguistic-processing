@@ -25,11 +25,60 @@ import sys
 from typing import Any, Tuple, Optional
 import bz2
 import boto3
+import hashlib
 import traceback
-from smart_open import open
+import smart_open
 from dotenv import load_dotenv
 
 log = logging.getLogger(__name__)
+
+
+def calculate_md5(file_path: str, s3_client: boto3.client = None) -> str:
+    """
+    Calculates the MD5 checksum of a file. Supports both local and S3 paths.
+
+    Args:
+        file_path (str): The path to the file (local or S3).
+        s3_client (boto3.client, optional): The S3 client to use if the file is in S3.
+
+    Returns:
+        str: The MD5 checksum of the file.
+    """
+    hash_md5 = hashlib.md5()
+
+    if file_path.startswith("s3://"):
+        if s3_client is None:
+            raise ValueError("s3_client must be provided for S3 paths")
+        bucket, key = parse_s3_path(file_path)
+        obj = s3_client.get_object(Bucket=bucket, Key=key)
+        for chunk in iter(lambda: obj["Body"].read(4096), b""):
+            hash_md5.update(chunk)
+    else:
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+
+    return hash_md5.hexdigest()
+
+
+def have_same_md5(
+    file_path1: str, file_path2: str, s3_client: boto3.client = None
+) -> bool:
+    """
+    Compares the MD5 checksums of two files (local or S3) and returns True if they are the same, False otherwise.
+
+    Args:
+        file_path1 (str): The path to the first file (local or S3).
+        file_path2 (str): The path to the second file (local or S3).
+        s3_client (boto3.client, optional): The S3 client to use if any of the files are in S3.
+
+    Returns:
+        bool: True if the files have the same MD5 checksum, False otherwise.
+    """
+    logging.debug("Comparing MD5 checksums of %s and %s", file_path1, file_path2)
+    md5_1 = calculate_md5(file_path1, s3_client)
+    md5_2 = calculate_md5(file_path2, s3_client)
+    return md5_1 == md5_2
 
 
 def get_timestamp() -> str:
@@ -38,21 +87,26 @@ def get_timestamp() -> str:
 
     Returns:
         str: The generated timestamp.
+
+    Example:
+        >>> len(get_timestamp()) == 20
+        True
     """
-    timestamp = datetime.datetime.utcnow().isoformat(sep="T", timespec="seconds") + "Z"
-    return timestamp
+    timestamp = datetime.datetime.now(datetime.timezone.utc)
+
+    return timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def keep_timestamp_only(
     input_path: str, timestamp: datetime.datetime | None = None
 ) -> None:
     """
-    Truncates the local file to zero length and updates its metadata to the given UTC timestamp.
+    Truncates the file to zero length and updates its metadata to the UTC timestamp.
 
     Args:
         input_path (str): The path to the file to be truncated and timestamped.
-        timestamp (datetime, optional): The UTC timestamp to set for the file's metadata.
-                                        If not provided, the current UTC time will be used.
+        timestamp (datetime, optional): The UTC timestamp to set for the file's
+            metadata. If not provided, the current UTC time will be used.
 
     Raises:
         Exception: If an error occurs during the truncation or timestamp update process.
@@ -87,9 +141,9 @@ def keep_timestamp_only(
         os.utime(input_path, (timestamp_epoch, timestamp_epoch))
 
         log.info(
-            "File %s has been truncated and its timestamp updated to %s.",
+            "Truncated %s and timestamp set to %s.",
             input_path,
-            timestamp.isoformat(),
+            timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
         )
     except Exception as e:
         log.error("Failed to truncate %s: %s", input_path, e)
@@ -114,18 +168,67 @@ def get_s3_client() -> "boto3.client":
     )
 
 
-def s3_file_exists(s3_client, bucket: str, key: str) -> bool:
+def upload_file_to_s3(s3_client, local_file_path: str, s3_path: str) -> None:
+    """Uploads a local file to an S3 bucket if it doesn't already exist and verifies the upload."""
+    bucket, key = parse_s3_path(s3_path)
+    if s3_file_exists(s3_client, bucket, key):
+        log.warning(f"The file s3://{bucket}/{key} already exists. Skipping upload.")
+        return
+
+    try:
+        # Calculate the MD5 checksum of the local file
+        local_md5 = calculate_md5(local_file_path)
+        log.info(f"MD5 checksum of local file {local_file_path}: {local_md5}")
+
+        # Upload the file to S3
+        log.info(f"Uploading {local_file_path} to s3://{bucket}/{key}")
+        s3_client.upload_file(local_file_path, bucket, key)
+        log.info(f"Successfully uploaded {local_file_path} to s3://{bucket}/{key}")
+
+        # Verify the upload by comparing MD5 checksums
+        s3_md5 = calculate_md5(s3_path, s3_client=s3_client)
+        log.info(f"MD5 checksum of uploaded file s3://{bucket}/{key}: {s3_md5}")
+
+        if local_md5 == s3_md5:
+            log.info(f"File {local_file_path} successfully verified after upload.")
+        else:
+            log.error(
+                f"MD5 checksum mismatch: local file {local_md5} != s3 file {s3_md5}"
+            )
+            raise ValueError("MD5 checksum mismatch after upload.")
+
+    except FileNotFoundError:
+        log.error(f"The file {local_file_path} was not found.")
+    except s3_client.exceptions.NoCredentialsError:
+        log.error("Credentials not available.")
+    except s3_client.exceptions.PartialCredentialsError:
+        log.error("Incomplete credentials provided.")
+    except Exception as e:
+        log.error(f"An error occurred: {e}")
+
+
+def s3_file_exists(s3_client, bucket_or_path: str, key: str = None) -> bool:
     """
     Check if a file exists in an S3 bucket.
 
     Args:
         s3_client: The boto3 S3 client.
-        bucket (str): The name of the S3 bucket.
-        key (str): The key of the file in the S3 bucket.
+        bucket_or_path (str): The name of the S3 bucket or the full S3 path.
+        key (str, optional): The key of the file in the S3 bucket.
+            Required if bucket_or_path is a bucket name.
 
     Returns:
         bool: True if the file exists, False otherwise.
     """
+    if key is None:
+        # Assume bucket_or_path is a full S3 path
+        if not bucket_or_path.startswith("s3://"):
+            raise ValueError("Invalid S3 path")
+        bucket, key = parse_s3_path(bucket_or_path)
+    else:
+        # Assume bucket_or_path is a bucket name
+        bucket = bucket_or_path
+
     try:
         s3_client.head_object(Bucket=bucket, Key=key)
         return True
@@ -316,7 +419,7 @@ class LocalStampCreator(object):
 
         os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
 
-        with open(local_file_path, "w", encoding="utf-8") as f:
+        with smart_open.open(local_file_path, "w", encoding="utf-8") as f:
             f.write(content if content is not None else "")
 
         os.utime(
