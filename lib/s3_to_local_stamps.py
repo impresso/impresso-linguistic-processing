@@ -168,10 +168,19 @@ def get_s3_client() -> "boto3.client":
     )
 
 
-def upload_file_to_s3(s3_client, local_file_path: str, s3_path: str) -> None:
-    """Uploads a local file to an S3 bucket if it doesn't already exist and verifies the upload."""
+def upload_file_to_s3(
+    s3_client, local_file_path: str, s3_path: str, force_overwrite: bool = False
+) -> None:
+    """Uploads a local file to an S3 bucket and verifies the upload.
+
+    Args:
+        s3_client: The boto3 S3 client.
+        local_file_path (str): The path to the local file to upload.
+        s3_path (str): The destination S3 path.
+        force_overwrite (bool): Whether to overwrite the file on S3 if it already exists.
+    """
     bucket, key = parse_s3_path(s3_path)
-    if s3_file_exists(s3_client, bucket, key):
+    if not force_overwrite and s3_file_exists(s3_client, bucket, key):
         log.warning(f"The file s3://{bucket}/{key} already exists. Skipping upload.")
         return
 
@@ -336,14 +345,33 @@ class LocalStampCreator(object):
         self.bucket_name, self.prefix = parse_s3_path(self.args.s3_path)
 
     def run(self) -> None:
-        """Orchestrates the stamp file creation process based on S3 objects."""
-
-        log.info("Starting stamp file creation...")
-        self.create_stamp_files(self.bucket_name, self.prefix)
-        log.info(
-            "Stamp file creation completed. Files created:"
-            f" {self.stats['files_created']}"
-        )
+        """Orchestrates the stamp file creation process or uploads a file to S3."""
+        if self.args.upload_file:
+            if not self.args.s3_path:
+                log.error(
+                    "When using --upload-file, you must specify the s3_path as the"
+                    " destination."
+                )
+                sys.exit(1)
+            upload_file_to_s3(
+                get_s3_client(),
+                self.args.upload_file,
+                self.args.s3_path,
+                self.args.force_overwrite,
+            )
+        elif self.args.s3_path:
+            log.info("Starting stamp file creation...")
+            self.create_stamp_files(self.bucket_name, self.prefix)
+            log.info(
+                "Stamp file creation completed. Files created: %d",
+                self.stats["files_created"],
+            )
+        else:
+            log.error(
+                "No action specified. Provide s3_path for stamp creation or use"
+                " --upload-file for uploading."
+            )
+            sys.exit(1)
 
     def create_stamp_files(self, bucket_name: str, prefix: str) -> None:
         """Creates local stamp files that mirror the structure of specified S3 objects.
@@ -445,6 +473,16 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
+        "--upload-file",
+        help="Path to the local file to upload to S3.",
+        metavar="LOCAL_FILE",
+    )
+    parser.add_argument(
+        "--force-overwrite",
+        action="store_true",
+        help="Overwrite the --upload-file on S3 even if it already exists.",
+    )
+    parser.add_argument(
         "--level",
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
@@ -474,8 +512,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--write-content",
         action="store_true",
-        help="Write the content of the S3 objects to the stamp files.",
+        help=(
+            "Write the content of the S3 objects to the local stamp files. Not used for"
+            " upload!"
+        ),
     )
+
     arguments = parser.parse_args()
 
     to_logging_level = {
@@ -490,6 +532,7 @@ if __name__ == "__main__":
         format="%(asctime)-15s %(filename)s:%(lineno)d %(levelname)s: %(message)s",
         force=True,
     )
+    log.info("Arguments: %s", arguments)
     try:
         processor = LocalStampCreator(arguments)
         processor.run()
