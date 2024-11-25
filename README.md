@@ -25,7 +25,6 @@ Python 3.11. Under Debian, make sure to have the following packages installed:
 ```sh
 $ # install python3.11 according to your OS
 $ sudo apt install git git-lfs make moreutils  # needed for building
-$ sudo apt rclone  # needed for uploading to s3
 $ sudo apt jq  # needed for computing statistics
 ```
 
@@ -48,9 +47,9 @@ Adapt the local paths for the input and output directories according in the
 and run the following command:
 
 ```sh
-make newspaper -j N # process specific newspaper/year pairs in parallel
+make newspaper -j N # process specific newspaper/year pairs in parallel typically for testing
 
-make each -j N #  process all newspapers in parallel
+make each -j N     #  process all newspapers using parallel processing within newspaper/year pairs
 ```
 
 ## Command-Line Options for `spacy_linguistic_processing.py`
@@ -67,3 +66,10 @@ The `spacy_linguistic_processing.py` script supports several command-line option
 - `--quit-if-s3-output-exists`: Quit if the output file already exists in the specified S3 bucket.
 - `--s3-output-path`: S3 path to upload the output file after processing or check if it already exists.
 - `--keep-timestamp-only`: After uploading to S3, keep only the timestamp of the local output file for data efficiency.
+
+# Uploading to impresso S3 bucket
+
+Ensure that the environment variables `SE_ACCESS_KEY` and `SE_SECRET_KEY` for access to the
+S3 impresso infrastructure are set, e.g., by setting them in a local `.env` file.
+
+The build process uploads the processed data to the impresso S3 bucket.
