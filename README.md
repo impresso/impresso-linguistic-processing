@@ -76,10 +76,12 @@ The build process uploads the processed data to the impresso S3 bucket.
 
 Release notes:
 
-- 2024-11-25:
+- 2024-11-25: v1-0-1
   - fix: POS tagging of lb was buggy (all tags set to X). This has been fixed.
   - feat: Generate log files for each newspaper/year pair and upload it to s3.
   - feat: Support agreed nameing convention for output files.
   - feat: Process directly from s3 input data, on-the-fly mirroring per newspaper for
     slim builds
-- 2024-04-24: First release of the impresso linguistic processing pipeline.
+  - note: no change to spaCy pipelines apart from lb POS tag mapping
+- 2024-04-24: v1-0-0
+  - First public release of the impresso linguistic processing pipeline.
