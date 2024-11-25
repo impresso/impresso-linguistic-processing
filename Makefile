@@ -227,7 +227,7 @@ newspaper:
 	$(MAKE) processing-target
 
 # Make newspaper from a clean fresh sync
-all: resync newspaper
+all: resync processing-target
 
 # Process the text embeddings for each newspaper found in the file $(NEWSPAPERS_TO_PROCESS_FILE)
 each: resync
@@ -375,16 +375,15 @@ help:
 	@echo "Usage: make <target>"
 	@echo "Targets:"
 	@echo "  setup                 # Prepare the local directories"
-	@echo "  newspaper             # Sync the data from the S3 bucket to the local directory and process the text embeddings for a single newspaper"
-	@echo "  each                  # Process the text embeddings for each newspaper found in the file $(NEWSPAPERS_TO_PROCESS_FILE)"
+	@echo "  each                  # Call make all for each newspaper found in the file $(NEWSPAPERS_TO_PROCESS_FILE)"
+	@echo "  all                   # Sync the data from the S3 bucket to the local directory and process the text embeddings for a single newspaper"
+	@echo "  newspaper             # Process a single newspaper for all years"
 	@echo "  sync                  # Sync the data from the S3 bucket to the local directory"
-	@echo "  resync                # Remove the local synchronization file stamp and redoes everything, ensuring a full sync with the remote server."
-	@echo "  clean-sync            # Remove the local synchronization file stamp and redoes everything, ensuring a full sync with the remote server."
+	@echo "  resync                # Remove the local synchronization file stamp and sync again."
 	@echo "  update-requirements   # Update the requirements.txt file with the current pipenv requirements."
-	@echo "  test-txt              # Test the output of the linguistic preprocessing"
 	@echo "  lb-spacy-package      # Package the Luxembourgish spaCy model"
 	@echo "  help                  # Show this help message"
-	# Add more help messages here
+
 
 .DEFAULT_GOAL := help
 PHONY_TARGETS += help
@@ -393,9 +392,9 @@ update-requirements:
 	pipenv requirements > requirements.txt
 
 
-test-txt:
-	bzcat linguistic-preprocessing-output/waeschfra/waeschfra-1871.jsonl.bz2  |\
-	jq -r '.sents[] | [(.tok[] | .t + "/" + .p + "/" + (if .l == "" or .l == null then .t else .l end))] | join(" ")'
+# test-txt:
+# 	bzcat linguistic-preprocessing-output/waeschfra/waeschfra-1871.jsonl.bz2  |\
+# 	jq -r '.sents[] | [(.tok[] | .t + "/" + .p + "/" + (if .l == "" or .l == null then .t else .l end))] | join(" ")'
 	
 
 lb-spacy-package:
