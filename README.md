@@ -73,3 +73,13 @@ Ensure that the environment variables `SE_ACCESS_KEY` and `SE_SECRET_KEY` for ac
 S3 impresso infrastructure are set, e.g., by setting them in a local `.env` file.
 
 The build process uploads the processed data to the impresso S3 bucket.
+
+Release notes:
+
+- 2024-11-25:
+  - fix: POS tagging of lb was buggy (all tags set to X). This has been fixed.
+  - feat: Generate log files for each newspaper/year pair and upload it to s3.
+  - feat: Support agreed nameing convention for output files.
+  - feat: Process directly from s3 input data, on-the-fly mirroring per newspaper for
+    slim builds
+- 2024-04-24: First release of the impresso linguistic processing pipeline.
