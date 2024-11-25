@@ -10,10 +10,13 @@ import collections
 import json
 import logging
 import os
+import sys
 from typing import Any, Dict, Generator, IO, Optional
 
 import dotenv
 import jsonschema
+from referencing import Registry, Resource
+from referencing.jsonschema import DRAFT7
 import smart_open
 import spacy
 
@@ -59,6 +62,29 @@ LB_TAG_MAP = {
     "NUM": "NUM",
     "_SP": "SPACE",
 }
+
+
+def initialize_validator(
+    schema_base_uri=SCHEMA_BASE_URI, schema=IMPRESSO_SCHEMA
+) -> jsonschema.Draft7Validator:
+    """
+    Initializes the schema validator.
+    """
+    with smart_open.open(
+        schema_base_uri + schema,
+        "r",
+    ) as f:
+        schema = json.load(f)
+
+    registry = Registry().with_resource(
+        schema_base_uri,
+        Resource.from_contents(schema),
+    )
+
+    validator = jsonschema.Draft7Validator(
+        schema=schema, resolver=registry.resolver(DRAFT7)
+    )
+    return validator
 
 
 def get_next_doc(
@@ -149,6 +175,15 @@ class LinguisticProcessing:
             or str(self.args.lid).startswith("s3://")
             else None
         )
+        # Check if the output file already exists in S3 and avoid lengthy processing
+        if self.args.quit_if_s3_output_exists and (s3out := self.args.s3_output_path):
+            if s3_file_exists(self.S3_CLIENT, s3out):
+                log.warning(
+                    "%s exists. Exiting without processing %s", s3out, self.args.INPUT
+                )
+                exit(3)
+            else:
+                log.info("%s does not exist. Proceeding with processing.", s3out)
         self.language_proc_units: Dict[str, spacy.language.Language] = {}
         self.lang_ident_data: Dict[str, str] | None = (
             read_langident(self.args.lid, client=self.S3_CLIENT)
@@ -162,18 +197,7 @@ class LinguisticProcessing:
             else os.environ.get("GIT_VERSION", "unknown")
         )
         if self.args.validate:
-            with smart_open.open(
-                SCHEMA_BASE_URI + IMPRESSO_SCHEMA,
-                "r",
-            ) as f:
-                self.schema = json.load(f)
-            self.schema_validator = jsonschema.Draft7Validator(
-                schema=self.schema,
-                resolver=jsonschema.RefResolver(
-                    referrer=self.schema,
-                    base_uri=SCHEMA_BASE_URI,
-                ),
-            )
+            self.schema_validator = initialize_validator()
 
         self.stats = collections.Counter()
 
@@ -322,16 +346,6 @@ class LinguisticProcessing:
 
         log.info("Processing %s %s %s", infile, collection, year)
 
-        # Check if the output file already exists in S3 and avoid lengthy processing
-        if self.args.quit_if_s3_output_exists and s3_outfile:
-            if s3_file_exists(self.S3_CLIENT, s3_outfile):
-                log.warning(
-                    "%s exists. Exiting without processing %s", s3_outfile, infile
-                )
-                return
-            else:
-                log.info("%s does not exist. Proceeding with processing.", s3_outfile)
-
         with open(outfile, "w") as out:
             doc_iter = enumerate(get_next_doc(infile, client=self.S3_CLIENT), start=1)
             for i, json_obj in doc_iter:
@@ -340,7 +354,7 @@ class LinguisticProcessing:
                 processed_doc = self.process_doc(json_obj, timestamp)
                 if self.args.validate and processed_doc is not None:
                     if not self.validate_document(processed_doc):
-                        exit(1)
+                        sys.exit(1)
 
                 if processed_doc is not None:
                     output_doc(processed_doc, out)
@@ -420,7 +434,12 @@ class LinguisticProcessing:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Linguistically process texts with POS tagging, lemmatization, etc."
+        description=(
+            "Linguistically process texts with POS tagging, lemmatization, etc. If"
+            " --quit-if-s3-output-exists is set, the script will exit with exit code 3"
+            " without processing if the output file already exists in the specified S3"
+            " bucket."
+        )
     )
     parser.add_argument(help="Path to impresso rebuilt file", dest="INPUT")
     parser.add_argument("--lid", help="Path to language identification file")
@@ -497,13 +516,15 @@ if __name__ == "__main__":
             def _open(self):
                 return smart_open.open(self.baseFilename, self.mode, encoding="utf-8")
 
-        log_handlers.append(SmartFileHandler(args.log_file))
+        log_handlers.append(SmartFileHandler(args.log_file, mode="w"))
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)-15s %(filename)s:%(lineno)d %(levelname)s: %(message)s",
         handlers=log_handlers,
         force=True,
     )
+    log.info("Called with args: %s", args)
 
     # Launching application...
     LinguisticProcessing(args).run()
+    sys.exit(0)
