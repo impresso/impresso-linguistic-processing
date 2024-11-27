@@ -233,13 +233,17 @@ newspaper:
 	$(MAKE) sync
 	$(MAKE) processing-target
 
-# Make newspaper from a clean fresh sync
-all: resync processing-target
+# Make newspaper from a clean fresh resync
+# resync should not be parallel
+# actual processing should be parallel
+all: 
+	$(MAKE) resync 
+	$(MAKE) $(MAKE_PARALLEL_OPTION) processing-target
 
 # Process the text embeddings for each newspaper found in the file $(NEWSPAPERS_TO_PROCESS_FILE)
-each: resync
+each: newspaper-list-target
 	for np in $(file < $(NEWSPAPERS_TO_PROCESS_FILE)) ; do \
-		$(MAKE) NEWSPAPER="$$np" all  ; \
+		$(MAKE) NEWSPAPER="$$np"  all  ; \
 	done
 
 
