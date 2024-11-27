@@ -38,18 +38,44 @@ $ python3.11 -mpipenv install
 $ python3.11 -mpipenv shell
 ```
 
-Adapt `env.sample` to your needs and copy it to `.env`.
+For s3-based file processing, the following environment variables need to be set:
+
+```sh
+SE_ACCESS_KEY=
+SE_SECRET_KEY=
+SE_HOST_URL=
+```
+
+If your global environment does not contain these variables, you can set them in a local
+`.env` file. The `python-dotenv` package is used to read these variables.
+
+```sh
+cp env.sample .env
+edit .env
+```
 
 # Running the pipeline
 
-Adapt the local paths for the input and output directories according in the
-`config.local.mk` (see `config.local.mk.sample` for an example).
-and run the following command:
+## Local configuration
+
+Adapt the local paths for the input and output directories in the
+`config.local.mk` (see `config.local.mk.sample` for default settings.)
 
 ```sh
+cp config.local.mk.sample config.local.mk
+edit config.local.mk
+```
+
+## Running the pipeline
+
+The build process is controlled by the `Makefile`.
+
+```sh
+make help  # show available targets
+
 make newspaper -j N # process specific newspaper/year pairs in parallel typically for testing
 
-make each -j N     #  process all newspapers using parallel processing within newspaper/year pairs
+make collection  MAKE_PARALLEL_OPTION=16   #  process all newspapers using parallel processing within newspaper/year pairs
 ```
 
 ## Command-Line Options for `spacy_linguistic_processing.py`
