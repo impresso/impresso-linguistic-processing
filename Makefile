@@ -241,7 +241,7 @@ all:
 	$(MAKE) $(MAKE_PARALLEL_OPTION) processing-target
 
 # Process the text embeddings for each newspaper found in the file $(NEWSPAPERS_TO_PROCESS_FILE)
-each: newspaper-list-target
+collection: newspaper-list-target
 	for np in $(file < $(NEWSPAPERS_TO_PROCESS_FILE)) ; do \
 		$(MAKE) NEWSPAPER="$$np"  all  ; \
 	done
@@ -387,8 +387,8 @@ help:
 	@echo "Usage: make <target>"
 	@echo "Targets:"
 	@echo "  setup                 # Prepare the local directories"
-	@echo "  each                  # Call make all for each newspaper found in the file $(NEWSPAPERS_TO_PROCESS_FILE)"
-	@echo "  all                   # Sync the data from the S3 bucket to the local directory and process the text embeddings for a single newspaper"
+	@echo "  collection            # Call `make all` for each newspaper found in the file $(NEWSPAPERS_TO_PROCESS_FILE)"
+	@echo "  all                   # Resync the data from the S3 bucket to the local directory and process all years of a single newspaper"
 	@echo "  newspaper             # Process a single newspaper for all years"
 	@echo "  sync                  # Sync the data from the S3 bucket to the local directory"
 	@echo "  resync                # Remove the local synchronization file stamp and sync again."
