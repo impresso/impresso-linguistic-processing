@@ -213,7 +213,7 @@ class LinguisticProcessing:
         if lang not in self.language_proc_units and lang in lang2model:
             nlp = spacy.load(lang2model.get(lang, lang), disable=["parser"])
             nlp.add_pipe("sentencizer", first=True)
-            nlp.max_length = 100000
+            nlp.max_length = self.args.max_doc_length + 1
             self.language_proc_units[lang] = nlp
             self.model_versions[lang] = (
                 "spacy@"
@@ -268,6 +268,10 @@ class LinguisticProcessing:
         elif full_text_len < self.args.min_doc_length:
             log.debug("Short text (%s chars): %s ", full_text_len, docid)
             self.stats["CONTENT-ITEMS-SHORT"] += 1
+            return None
+        elif full_text_len > self.args.max_doc_length:
+            log.debug("Long text (%s chars): %s ", full_text_len, docid)
+            self.stats["CONTENT-ITEMS-LONG"] += 1
             return None
 
         lang = None
@@ -332,6 +336,7 @@ class LinguisticProcessing:
             "lingproc_git": self.git_version,
             "char_count": full_text_len,
             "min_chars": self.args.min_doc_length,
+            "max_chars": self.args.max_doc_length,
         }
 
     def run(self) -> None:
@@ -467,6 +472,7 @@ if __name__ == "__main__":
         "-o", "--output-path", default="out.jsonl", help="Path to output file"
     )
     parser.add_argument("--min-doc-length", type=int, default=50)
+    parser.add_argument("--max-doc-length", type=int, default=50000)
     parser.add_argument(
         "--validate",
         action="store_true",
