@@ -34,10 +34,17 @@ LOGGING_LEVEL ?= INFO
 # Load our make logging functions
 include lib/log.mk
 
+# keep make output concise for longish recipes
+ifeq "$(filter DEBUG,$(LOGGING_LEVEL))" "DEBUG"
+  $(call log.debug, LOGGING_LEVEL)
+MAKE_SILCENCE_RECIPE ?=
+else
+MAKE_SILCENCE_RECIPE ?= @
+endif
+
 # Set the number of parallel embedding jobs to run
 MAKE_PARALLEL_OPTION ?= --jobs 2
   $(call log.debug, MAKE_PARALLEL_OPTION)
-
 
 
 ifndef GIT_VERSION
@@ -293,7 +300,7 @@ $(IN_LOCAL_PATH_PROCESSED_DATA).last_synced:
 	python lib/s3_to_local_stamps.py \
 	   $(IN_S3_PATH_PROCESSED_DATA) \
 	   --local-dir $(BUILD_DIR) \
-	   --write-content \
+	   --stamp-extension '' \
 	   2> >(tee $@.log >&2) && \
 	touch $@
 
@@ -334,11 +341,12 @@ processing-target: $(local-processed-files)
 # Rule to process a single newspaper
 # Note: we need to unset the errexit SHELL flag to be able to communicate the exit code of the processing script
 $(OUT_LOCAL_PATH_PROCESSED_DATA)/%.jsonl.bz2: $(IN_LOCAL_PATH_REBUILT)/%.jsonl.bz2.stamp $(IN_LOCAL_PATH_PROCESSED_DATA)/%.jsonl.bz2
+	$(MAKE_SILCENCE_RECIPE) \
 	mkdir -p $(@D) && \
 	{  set +e ; \
 	  python3 lib/spacy_linguistic_processing.py \
           $(call local_to_s3,$<,.stamp) \
-          --lid $(word 2,$^) \
+          --lid $(call local_to_s3,$(word 2,$^),.stamp) \
           --validate \
           --s3-output-path $(call local_to_s3,$@) \
           $(PROCESSING_KEEP_TIMESTAMP_ONLY_OPTION) \
@@ -346,24 +354,24 @@ $(OUT_LOCAL_PATH_PROCESSED_DATA)/%.jsonl.bz2: $(IN_LOCAL_PATH_REBUILT)/%.jsonl.b
           $(PROCESSING_S3_OUTPUT_DRY_RUN) \
           $(PROCESSING_QUIET_OPTION) \
           -o $@ \
-          --log-file $@.log.gz; \
-    EXIT_CODE=$$?; \
-	echo "Processing exit code: $$EXIT_CODE"; \
-    if [ $$EXIT_CODE -eq 0 ]; then \
-        echo "Processing completed successfully. Uploading logfile..."; \
+          --log-file $@.log.gz ; \
+    EXIT_CODE=$$? ; \
+	echo "Processing exit code: $$EXIT_CODE" ; \
+    if [ $$EXIT_CODE -eq 0 ] ; then \
+        echo "Processing completed successfully. Uploading logfile..." ; \
         python3 lib/s3_to_local_stamps.py \
             $(call local_to_s3,$@).log.gz \
             --upload-file $@.log.gz \
 			--force-overwrite ; \
     elif [ $$EXIT_CODE -eq 3 ]; then \
-        echo "Processing skipped (output exists on S3). Not uploading logfile."; \
-        rm -f $@; \
-        exit 0; \
+        echo "Processing skipped (output exists on S3). Not uploading logfile." ; \
+        rm -f $@ ; \
+        exit 0 ; \
     else \
-        echo "An error occurred during processing. Exit code: $$EXIT_CODE"; \
-        rm -f $@; \
-        exit $$EXIT_CODE; \
-    fi; }
+        echo "An error occurred during processing. Exit code: $$EXIT_CODE" ; \
+        rm -f $@ ; \
+        exit $$EXIT_CODE ; \
+    fi ; }
 
 
 clean-build:
@@ -380,6 +388,8 @@ help:
 	@echo "  newspaper             # Process a single newspaper for all years"
 	@echo "  sync                  # Sync the data from the S3 bucket to the local directory"
 	@echo "  resync                # Remove the local synchronization file stamp and sync again."
+	@echo "  clean-build           # Remove the entire build directory"
+	@echo "  clean-newspaper       # Remove the local directory for a single newspaper"
 	@echo "  update-requirements   # Update the requirements.txt file with the current pipenv requirements."
 	@echo "  lb-spacy-package      # Package the Luxembourgish spaCy model"
 	@echo "  help                  # Show this help message"
