@@ -350,6 +350,8 @@ class LinguisticProcessing:
         collection: str = os.path.basename(infile).split("-")[0]
         year: str = infile.split("-")[-1][:4]
 
+        total_doc_count = len(self.lang_ident_data)
+        newspaper = outfile.split("/")[-1].split(".")[0]
         start_time = time.time()
         processed_doc_count = 1
         log.info("Processing %s %s %s", infile, collection, year)
@@ -371,10 +373,12 @@ class LinguisticProcessing:
                         end_time = time.time()
 
                         log.info(
-                            "Processed %d documents with content (total with"
-                            " unprocessable: %s) in %s secs/1k doc",
+                            "Processed %d content items with content (total with"
+                            " unprocessable: %d/%d in %s) in %d secs/1k content items",
                             processed_doc_count,
                             i,
+                            total_doc_count,
+                            newspaper,
                             round((end_time - start_time), 1),
                         )
                         start_time = end_time
