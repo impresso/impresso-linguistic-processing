@@ -362,17 +362,17 @@ class LinguisticProcessing:
                 if processed_doc is not None:
                     output_doc(processed_doc, out)
                     processed_doc_count += 1
-                if processed_doc_count % 1000 == 0:
-                    end_time = time.time()
+                    if processed_doc_count % 1000 == 0:
+                        end_time = time.time()
 
-                    log.info(
-                        "Processed %d documents with content (total with unprocessable:"
-                        " %s) in %s secs/1k doc",
-                        processed_doc_count,
-                        i,
-                        round((end_time - start_time), 3),
-                    )
-                    start_time = end_time
+                        log.info(
+                            "Processed %d documents with content (total with"
+                            " unprocessable: %s) in %s secs/1k doc",
+                            processed_doc_count,
+                            i,
+                            round((end_time - start_time), 1),
+                        )
+                        start_time = end_time
         log.info(
             "Processed %d processable documents (total documents: %d)",
             processed_doc_count,
