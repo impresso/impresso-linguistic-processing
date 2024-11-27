@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import sys
+import time
 from typing import Any, Dict, Generator, IO, Optional
 
 import dotenv
@@ -344,6 +345,8 @@ class LinguisticProcessing:
         collection: str = os.path.basename(infile).split("-")[0]
         year: str = infile.split("-")[-1][:4]
 
+        start_time = time.time()
+        processed_doc_count = 1
         log.info("Processing %s %s %s", infile, collection, year)
 
         with open(outfile, "w") as out:
@@ -358,9 +361,23 @@ class LinguisticProcessing:
 
                 if processed_doc is not None:
                     output_doc(processed_doc, out)
-                if i % 1000 == 0:
-                    log.info("Processed %d documents", i)
-        log.info("Processed %d processable documents", i)
+                    processed_doc_count += 1
+                if processed_doc_count % 1000 == 0:
+                    end_time = time.time()
+
+                    log.info(
+                        "Processed %d documents with content (total with unprocessable:"
+                        " %s) in %s secs/1k doc",
+                        processed_doc_count,
+                        i,
+                        round((end_time - start_time), 3),
+                    )
+                    start_time = end_time
+        log.info(
+            "Processed %d processable documents (total documents: %d)",
+            processed_doc_count,
+            i,
+        )
 
         for k in self.stats:
             log.info("%s: %d", k, self.stats[k])
