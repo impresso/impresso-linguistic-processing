@@ -20,22 +20,30 @@ und unknown licencing status. We set the version and name in the model's meta da
 ## Prerequisites
 
 The build process has been tested on modern Linux and macOS systems and requires
-Python 3.11. Under Debian, make sure to have the following packages installed:
+Python 3.11. Under Ubuntu/Debian
+, make sure to have the following packages installed:
 
 ```sh
-$ # install python3.11 according to your OS
-$ sudo apt install git git-lfs make moreutils  # needed for building
-$ sudo apt jq  # needed for computing statistics
+# install python3.11 according to your OS
+sudo apt update
+sudo apt upgrade -y
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt update
+sudo apt install python3.11 -y
+sudo apt install python3.11-distutils -y
+curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
+sudo apt install git git-lfs make moreutils  # needed for building
+sudo apt jq  # needed for computing statistics
 ```
 
 This repository uses `pipenv`.
 
 ```sh
-$ git clone https://github.com/impresso/impresso-linguistic-processing.git
-$ cd impresso-linguistic-processing
-$ python3.11 -mpip install pipenv
-$ python3.11 -mpipenv install
-$ python3.11 -mpipenv shell
+git clone https://github.com/impresso/impresso-linguistic-processing.git
+cd impresso-linguistic-processing
+python3.11 -mpip install pipenv
+python3.11 -mpipenv install
+python3.11 -mpipenv shell
 ```
 
 For s3-based file processing, the following environment variables need to be set:
@@ -102,6 +110,8 @@ The build process uploads the processed data to the impresso S3 bucket.
 
 Release notes:
 
+- 2024-11-27: v1-0-3
+  - chore: improve logging and add length limit for input text
 - 2024-11-25: v1-0-1
   - fix: POS tagging of lb was buggy (all tags set to X). This has been fixed.
   - feat: Generate log files for each newspaper/year pair and upload it to s3.
