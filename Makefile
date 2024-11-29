@@ -225,6 +225,7 @@ setup:
 	#$(MAKE) check-python-installation
 	$(MAKE) newspaper-list-target
 
+PHONY_TARGETS += setup
 
 
 
@@ -233,6 +234,8 @@ newspaper:
 	$(MAKE) sync
 	$(MAKE) processing-target
 
+PHONY_TARGETS += newspaper
+
 # Make newspaper from a clean fresh resync
 # resync should not be parallel
 # actual processing should be parallel
@@ -240,19 +243,25 @@ all:
 	$(MAKE) resync 
 	$(MAKE) $(MAKE_PARALLEL_OPTION) processing-target
 
+PHONY_TARGETS += all
+
 # Process the text embeddings for each newspaper found in the file $(NEWSPAPERS_TO_PROCESS_FILE)
 collection: newspaper-list-target
 	for np in $(file < $(NEWSPAPERS_TO_PROCESS_FILE)) ; do \
 		$(MAKE) NEWSPAPER="$$np"  all  ; \
 	done
 
+PHONY_TARGETS += collection
 
 # SYNCING THE INPUT AND OUTPUT DATA FROM S3 TO LOCAL DIRECTORY
 
 # Sync  the data from the S3 bucket to the local directory for input of textembeddings and output of textembeddings
 sync: sync-input sync-output
 
+PHONY_TARGETS += sync
 sync-input: sync-input-rebuilt sync-input-processed
+
+PHONY_TARGETS += sync-input
 
 # The local per-newspaper synchronization file stamp for the rebuilt input data: What is on S3 has been synced?
 IN_LOCAL_REBUILT_SYNC_STAMP_FILE := $(IN_LOCAL_PATH_REBUILT).last_synced
@@ -260,11 +269,15 @@ IN_LOCAL_REBUILT_SYNC_STAMP_FILE := $(IN_LOCAL_PATH_REBUILT).last_synced
 
 sync-input-rebuilt: $(IN_LOCAL_REBUILT_SYNC_STAMP_FILE)
 
+PHONY_TARGETS += sync-input-rebuilt
+
 # The local per-newspaper synchronization file stamp for the processed input data: What is on S3 has been synced?
 IN_LOCAL_PROCESSED_DATA_SYNC_STAMP_FILE := $(IN_LOCAL_PATH_PROCESSED_DATA).last_synced
   $(call log.debug, IN_LOCAL_PROCESSED_DATA_SYNC_STAMP_FILE)
 
 sync-input-processed: $(IN_LOCAL_PROCESSED_DATA_SYNC_STAMP_FILE)
+
+PHONY_TARGETS += sync-input-processed
 
 # The local per-newspaper synchronization file stamp for the output text embeddings: What is on S3 has been synced?
 OUT_LOCAL_PROCESSED_DATA_SYNC_STAMP_FILE := $(OUT_LOCAL_PATH_PROCESSED_DATA).last_synced
@@ -274,18 +287,35 @@ OUT_LOCAL_PROCESSED_DATA_SYNC_STAMP_FILE := $(OUT_LOCAL_PATH_PROCESSED_DATA).las
 
 sync-output: sync-output-processed-data
 
+PHONY_TARGETS += sync-output
+
 sync-output-processed-data: $(OUT_LOCAL_PROCESSED_DATA_SYNC_STAMP_FILE)
 
+PHONY_TARGETS += sync-output-processed-data
 
 # Remove the local synchronization file stamp and redoes everything, ensuring a full sync with the remote server.
 resync: clean-newspaper
 	$(MAKE) sync
 
+PHONY_TARGETS += resync
+
+resync-output: clean-sync-output
+	$(MAKE) sync-output
+
+PHONY_TARGETS += resync-output
+
 clean-newspaper: clean-sync
 	rm -vfr $(IN_LOCAL_PATH_REBUILT) $(IN_LOCAL_PATH_PROCESSED_DATA) $(OUT_LOCAL_PATH_PROCESSED_DATA) || true
 
-clean-sync:
-	rm -vf $(IN_LOCAL_REBUILT_SYNC_STAMP_FILE) $(IN_LOCAL_PROCESSED_DATA_SYNC_STAMP_FILE) $(OUT_LOCAL_PROCESSED_DATA_SYNC_STAMP_FILE)  || true
+PHONY_TARGETS += clean-newspaper
+
+clean-sync: clean-sync-output
+	rm -vf $(IN_LOCAL_REBUILT_SYNC_STAMP_FILE) $(IN_LOCAL_PROCESSED_DATA_SYNC_STAMP_FILE)  || true
+
+PHONY_TARGETS += clean-sync
+
+clean-sync-output:
+	rm -vf $(OUT_LOCAL_PROCESSED_DATA_SYNC_STAMP_FILE)  || true
 
 # Rule to sync the input data from the S3 bucket to the local directory
 $(IN_LOCAL_PATH_REBUILT).last_synced:
@@ -443,3 +473,7 @@ endef
 # Example 3: Convert local path to S3 path and strip a custom suffix
 # Input: $(call local_to_s3,build.d/22-rebuilt-final/marieclaire/file.custom,.custom)
 # Output: s3://22-rebuilt-final/marieclaire/file
+
+
+
+include lib/more_tasks.mk
