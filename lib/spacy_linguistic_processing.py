@@ -356,7 +356,7 @@ class LinguisticProcessing:
         processed_doc_count = 1
         log.info("Processing %s %s %s", infile, collection, year)
 
-        with open(outfile, "w") as out:
+        with smart_open.open(outfile, "w") as out:
             doc_iter = enumerate(get_next_doc(infile, client=self.S3_CLIENT), start=1)
             for i, json_obj in doc_iter:
                 if json_obj is None:

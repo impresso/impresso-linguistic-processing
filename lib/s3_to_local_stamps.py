@@ -20,7 +20,9 @@ __license__ = "GNU GPL 3.0 or later"
 import argparse
 import datetime
 import logging
+import fnmatch
 import os
+import time
 import sys
 from typing import Any, Tuple, Optional
 import bz2
@@ -30,6 +32,7 @@ import traceback
 import smart_open
 from dotenv import load_dotenv
 
+load_dotenv()
 log = logging.getLogger(__name__)
 
 
@@ -79,6 +82,138 @@ def have_same_md5(
     md5_1 = calculate_md5(file_path1, s3_client)
     md5_2 = calculate_md5(file_path2, s3_client)
     return md5_1 == md5_2
+
+
+def upload_with_retries(
+    s3_client: boto3.client,
+    local_file_path: str,
+    s3_path: str,
+    max_retries: int = 5,
+    sleep_time: int = 3,
+) -> bool:
+    """
+    Tries to overwrite the S3 file by first uploading a temporary file and verifying the MD5 checksum.
+
+    Args:
+        s3_client (boto3.client): The S3 client to use.
+        local_file_path (str): The path to the local file.
+        s3_path (str): The S3 path to the file.
+        max_retries (int): The maximum number of retries if the MD5 checksum does not match.
+        sleep_time (int): The number of seconds to sleep between retries.
+
+    Returns:
+        bool: True if the file was successfully overwritten, False otherwise.
+    """
+    bucket, key = parse_s3_path(s3_path)
+    tmp_key = key + ".tmp"
+    local_md5 = calculate_md5(local_file_path)
+
+    for attempt in range(max_retries):
+        try:
+            # Upload the temporary file to S3
+            s3_client.upload_file(local_file_path, bucket, tmp_key)
+            log.info(f"Uploaded temporary file to s3://{bucket}/{tmp_key}")
+
+            # Calculate the MD5 checksum of the uploaded temporary file
+            s3_md5 = calculate_md5(f"s3://{bucket}/{tmp_key}", s3_client=s3_client)
+
+            # Verify the MD5 checksum
+            if local_md5 == s3_md5:
+                # Copy the temporary file to the final destination
+                s3_client.copy_object(
+                    Bucket=bucket,
+                    Key=key,
+                    CopySource={"Bucket": bucket, "Key": tmp_key},
+                    MetadataDirective="REPLACE",
+                )
+                log.info(
+                    f"Successfully copied s3://{bucket}/{tmp_key} to"
+                    f" s3://{bucket}/{key}"
+                )
+                s3_md5_overwritten = calculate_md5(
+                    f"s3://{bucket}/{key}", s3_client=s3_client
+                )
+                if local_md5 == s3_md5_overwritten:
+                    log.info(f"MD5 checksum verified after overwrite: {local_md5}")
+                else:
+                    log.error(
+                        f"MD5 checksum mismatch after overwrite: local file {local_md5}"
+                        f" != s3 file {s3_md5_overwritten}"
+                    )
+                    raise ValueError(
+                        f"MD5 checksum mismatch after overwrite: s3://{bucket}/{key} is"
+                        " probably corrupted."
+                    )
+                return True
+            else:
+                log.warning(
+                    f"MD5 checksum mismatch: local file {local_md5} != s3 file {s3_md5}"
+                )
+                time.sleep(sleep_time)
+        except Exception as e:
+            log.error(f"An error occurred during upload attempt {attempt + 1}: {e}")
+            time.sleep(sleep_time)
+        finally:
+            s3_client.delete_object(Bucket=bucket, Key=tmp_key)
+            log.info(f"Deleted temporary file s3://{bucket}/{tmp_key}")
+
+    log.error(
+        f"Failed to overwrite s3://{bucket}/{key} after {max_retries} attempts."
+        " Continuing..."
+    )
+    return False
+
+
+def download_with_retries(
+    s3_client: boto3.client,
+    s3_path: str,
+    local_file_path: str,
+    max_retries: int = 5,
+    sleep_time: int = 3,
+) -> bool:
+    """
+    Tries to download an S3 file and verifies the MD5 checksum.
+
+    Args:
+        s3_client (boto3.client): The S3 client to use.
+        s3_path (str): The S3 path to the file.
+        local_file_path (str): The path to the local file.
+        max_retries (int): The maximum number of retries if the MD5 checksum does not match.
+        sleep_time (int): The number of seconds to sleep between retries.
+
+    Returns:
+        bool: True if the file was successfully downloaded and verified, False otherwise.
+    """
+    bucket, key = parse_s3_path(s3_path)
+    s3_md5 = calculate_md5(s3_path, s3_client=s3_client)
+
+    for attempt in range(max_retries):
+        try:
+            # Download the file from S3
+            s3_client.download_file(bucket, key, local_file_path)
+            log.info(f"Downloaded file to {local_file_path}")
+
+            # Calculate the MD5 checksum of the downloaded file
+            local_md5 = calculate_md5(local_file_path)
+
+            # Verify the MD5 checksum
+            if local_md5 == s3_md5:
+                log.info(f"MD5 checksum verified: {local_md5}")
+                return True
+            else:
+                log.warning(
+                    f"MD5 checksum mismatch: local file {local_md5} != s3 file {s3_md5}"
+                )
+                time.sleep(sleep_time)
+        except Exception as e:
+            log.error(f"An error occurred during download attempt {attempt + 1}: {e}")
+            time.sleep(sleep_time)
+
+    log.error(
+        f"Failed to download and verify s3://{bucket}/{key} after"
+        f" {max_retries} attempts"
+    )
+    return False
 
 
 def get_timestamp() -> str:
@@ -268,7 +403,6 @@ def get_s3_resource(
             Any: The configured S3 resource.
     """
 
-    load_dotenv()
     access_key = access_key or os.getenv("SE_ACCESS_KEY")
     secret_key = secret_key or os.getenv("SE_SECRET_KEY")
     host_url = host_url or os.getenv("SE_HOST_URL")
@@ -306,11 +440,123 @@ def parse_s3_path(s3_path: str) -> Tuple[str, str]:
     ValueError: S3 path must start with s3://
     """
     if not s3_path.startswith("s3://"):
-        raise ValueError("S3 path must start with s3://")
+        raise ValueError("S3 path must start with s3://: %s", s3_path)
     path_parts = s3_path[5:].split("/", 1)
     if len(path_parts) < 2:
         raise ValueError("S3 path must include both bucket name and prefix")
     return path_parts[0], path_parts[1]
+
+
+class S3Compressor:
+    def __init__(
+        self,
+        s3_path: str,
+        local_path: Optional[str] = None,
+        new_s3_path: Optional[str] = None,
+        new_bucket: Optional[str] = None,
+        strip_local_extension: Optional[str] = None,
+        s3_client: Optional[boto3.client] = None,
+    ):
+        self.s3_path = s3_path
+        self.local_path = local_path
+        self.new_s3_path = new_s3_path
+        self.new_bucket = new_bucket
+        self.strip_local_extension = strip_local_extension
+        self.s3_client = s3_client or get_s3_client()
+
+    def compress_and_upload(self) -> None:
+        """
+        Downloads an S3 file, compresses it as bz2, uploads it under the same name, and verifies the MD5 checksum.
+        """
+        if self.new_s3_path:
+            compressed_bucket, compressed_key = parse_s3_path(self.new_s3_path)
+        else:
+            compressed_bucket, compressed_key = parse_s3_path(self.s3_path)
+
+        if self.local_path is None:
+            if self.strip_local_extension is not None:
+                if self.s3_path.endswith(self.strip_local_extension):
+                    self.local_path = self.s3_path[5:][
+                        : -len(self.strip_local_extension)
+                    ]
+                else:
+                    log.error(
+                        "The s3_path %s does not end with the specified extension: %s",
+                        self.s3_path,
+                        self.strip_local_extension,
+                    )
+                    sys.exit(1)
+            else:
+                self.local_path = self.s3_path[5:]
+
+        if self.new_s3_path is None:
+            if self.new_bucket is None:
+                self.new_s3_path = self.s3_path
+                log.warning(
+                    "Overwriting the original file %s. Might lead to data loss in case"
+                    " of network problems.",
+                    self.s3_path,
+                )
+            else:
+                compressed_bucket = self.new_bucket
+        else:
+            if self.new_bucket is None:
+                compressed_bucket, compressed_key = parse_s3_path(self.new_s3_path)
+            else:
+                log.warning("Specifying s3_path and bucket is invalid")
+                sys.exit(2)
+        log.warning(
+            f"Compressing {self.s3_path} to {compressed_bucket}/{compressed_key}"
+        )
+
+        compressed_local_path = self.local_path + ".bz2"
+
+        # Download the file from S3
+        result = download_with_retries(self.s3_client, self.s3_path, self.local_path)
+        if not result:
+            log.error(
+                "Failed to download %s after multiple attempts. Aborting compression.",
+                self.s3_path,
+            )
+            return
+        log.warning("Downloaded %s to %s", self.s3_path, self.local_path)
+        # Check if the file is already compressed
+        try:
+            with bz2.open(self.local_path, "rb") as test_file:
+                test_file.read(1)
+            log.warning(
+                f"The file {self.local_path} is already compressed. Removing local"
+                " file %s",
+                self.local_path,
+            )
+            os.remove(self.local_path)
+            return
+        except OSError:
+            log.warning(
+                f"The file {self.local_path} is not compressed. Proceeding with"
+                " compression.",
+            )
+
+        # Compress the file
+        with open(self.local_path, "rb") as input_file:
+            with bz2.open(compressed_local_path, "wb") as output_file:
+                output_file.write(input_file.read())
+            log.warning("Compressed %s to %s", self.local_path, compressed_local_path)
+
+        # Upload the compressed file to S3 (overwriting the existing file)
+        result = upload_with_retries(
+            self.s3_client, compressed_local_path, self.new_s3_path
+        )
+        if not result:
+            log.error(
+                "Failed to upload %s to %s after multiple attempts.",
+                compressed_local_path,
+                self.new_s3_path,
+            )
+
+        # Clean up local files
+        os.remove(self.local_path)
+        os.remove(compressed_local_path)
 
 
 class LocalStampCreator(object):
@@ -359,6 +605,15 @@ class LocalStampCreator(object):
                 self.args.s3_path,
                 self.args.force_overwrite,
             )
+        elif self.args.list_files:
+            bucket = self.s3_resource.Bucket(self.bucket_name)
+            glob = self.args.list_files_glob or None
+
+            for obj in bucket.objects.filter(Prefix=self.prefix):
+                if glob:
+                    if not fnmatch.fnmatch(obj.key, glob):
+                        continue
+                print(f"s3://{self.bucket_name}/{obj.key}")
         elif self.args.s3_path:
             log.info("Starting stamp file creation...")
             self.create_stamp_files(self.bucket_name, self.prefix)
@@ -517,7 +772,21 @@ if __name__ == "__main__":
             " upload!"
         ),
     )
-
+    parser.add_argument(
+        "--list-files",
+        action="store_true",
+        help=(
+            "list all files in the bucket and prefix on stdout and exit. No stamp files"
+            " are created."
+        ),
+    )
+    parser.add_argument(
+        "--list-files-glob",
+        help=(
+            "Specify a file glob filter on the keys. Only used"
+            " with option --list-files."
+        ),
+    )
     arguments = parser.parse_args()
 
     to_logging_level = {
