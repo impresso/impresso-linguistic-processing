@@ -110,6 +110,11 @@ The build process uploads the processed data to the impresso S3 bucket.
 
 Release notes:
 
+- 2024-11-30: v1-0-4
+  - note: no change to spaCy pipelines and output content
+  - fix: upload to s3 was not compressed. This has been fixed.
+  - feat: separate s3 compression script to carefully compress uncompressed files on s3
+  - chore: small improvements
 - 2024-11-27: v1-0-3
   - chore: improve logging and add length limit for input text
 - 2024-11-25: v1-0-1
