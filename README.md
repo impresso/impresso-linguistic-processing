@@ -32,7 +32,7 @@ sudo apt update
 sudo apt install python3.11 -y
 sudo apt install python3.11-distutils -y
 curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
-sudo apt install git git-lfs make moreutils remake parallel # needed for building
+sudo apt install git git-lfs make moreutils coreutils parallel # needed for building
 sudo apt jq  # needed for computing statistics
 ```
 
