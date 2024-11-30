@@ -605,6 +605,7 @@ class LocalStampCreator(object):
                 self.args.s3_path,
                 self.args.force_overwrite,
             )
+            sys.exit(0)
         elif self.args.list_files:
             bucket = self.s3_resource.Bucket(self.bucket_name)
             glob = self.args.list_files_glob or None
