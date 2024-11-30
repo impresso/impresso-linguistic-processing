@@ -493,8 +493,8 @@ class S3Compressor:
             if self.new_bucket is None:
                 self.new_s3_path = self.s3_path
                 log.warning(
-                    "Overwriting the original file %s. Might lead to data loss in case"
-                    " of network problems.",
+                    "Overwriting the original file %s. Taking care to not overwrite the"
+                    " original file in case of network problems.",
                     self.s3_path,
                 )
             else:
