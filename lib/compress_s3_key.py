@@ -3,6 +3,7 @@
 import click
 import tempfile
 import logging
+import sys
 import s3_to_local_stamps
 
 log = logging.getLogger(__name__)
@@ -83,3 +84,4 @@ def compress_s3_key(
 
 if __name__ == "__main__":
     compress_s3_key()
+    sys.exit(0)
