@@ -614,6 +614,7 @@ class LocalStampCreator(object):
                     if not fnmatch.fnmatch(obj.key, glob):
                         continue
                 print(f"s3://{self.bucket_name}/{obj.key}")
+            sys.exit(0)
         elif self.args.s3_path:
             log.info("Starting stamp file creation...")
             self.create_stamp_files(self.bucket_name, self.prefix)
