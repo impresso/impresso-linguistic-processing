@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
 
 """
-Script to_ preprocess text for topic modeling, utilizing precomputed language
-identification results.
+This script preprocesses text for topic modeling using precomputed language identification results.
+
+Functions:
+    initialize_validator: Initializes the schema validator.
+    get_next_doc: Generates documents from a file line by line.
+    output_doc: Outputs a document to the specified file.
+    read_langident: Reads language identification results from a file.
+
+Classes:
+    LinguisticProcessing: Processes documents, adding linguistic annotations.
+
+Usage example:
+    python spacy_linguistic_processing.py --input path/to/input --output-path path/to/output
 """
 
 import argparse
@@ -350,13 +361,15 @@ class LinguisticProcessing:
         collection: str = os.path.basename(infile).split("-")[0]
         year: str = infile.split("-")[-1][:4]
 
-        total_doc_count = len(self.lang_ident_data)
+        total_doc_count = len(self.lang_ident_data) if self.lang_ident_data else 1
         newspaper = outfile.split("/")[-1].split(".")[0]
         start_time = time.time()
         processed_doc_count = 1
         log.info("Processing %s %s %s", infile, collection, year)
 
         with smart_open.open(outfile, "w") as out:
+            # make sure that the file is not empty and in case of bz2 that it is a valid file!
+            out.write("")
             doc_iter = enumerate(get_next_doc(infile, client=self.S3_CLIENT), start=1)
             for i, json_obj in doc_iter:
                 if json_obj is None:
