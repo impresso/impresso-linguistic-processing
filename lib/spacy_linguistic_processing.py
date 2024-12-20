@@ -76,6 +76,58 @@ LB_TAG_MAP = {
 }
 
 
+def map_tag(tag: str, lang: str) -> str:
+    """
+    Maps a tag to the appropriate POS tag for the specified language.
+
+    Args:
+        tag (str): The tag to map.
+        lang (str): The language code.
+
+    Returns:
+        str: The mapped tag.
+    """
+    if lang == "lb":
+        return LB_TAG_MAP.get(tag, "X")
+    return tag
+
+
+def process_text_with_spacy(text: str, lang: str, nlp: spacy.language.Language) -> list:
+    """Process text with spaCy and extract linguistic features.
+
+    Args:
+        text (str): Input text to process
+        lang (str): Language code
+        nlp (spacy.language.Language): Loaded spaCy model
+
+    Returns:
+        list: List of sentences with tokenization and linguistic annotations
+    """
+    doc = nlp(text)
+    preprocessed_text = []
+    tag_accessor = "tag_" if lang == "lb" else "pos_"
+
+    for sent in doc.sents:
+        preprocessed_sent = []
+        for tok in sent:
+            tok_dict = {
+                "t": tok.text,
+                "p": map_tag(getattr(tok, tag_accessor), lang),
+                "o": tok.idx,
+            }
+            if tok.text != tok.lemma_:
+                tok_dict["l"] = tok.lemma_
+
+            if tok.ent_type_:
+                tok_dict["e"] = f"{tok.ent_iob_}-{tok.ent_type_}"
+
+            preprocessed_sent.append(tok_dict)
+
+        preprocessed_text.append({"lg": lang, "tok": preprocessed_sent})
+
+    return preprocessed_text
+
+
 def initialize_validator(
     schema_base_uri=SCHEMA_BASE_URI, schema=IMPRESSO_SCHEMA
 ) -> jsonschema.Draft7Validator:
@@ -317,30 +369,21 @@ class LinguisticProcessing:
 
         self.stats["CONTENT-ITEMS-OK"] += 1
         preprocessed_text = []
-        doc = self.language_proc_units[lang](full_text)
 
-        for sent in doc.sents:
-            preprocessed_sent = []
+        title_text = json_obj.get("t")
+        if title_text:
+            preprocessed_title = process_text_with_spacy(
+                title_text, lang, self.language_proc_units[lang]
+            )
 
-            for tok in sent:
-                tok_dict = {
-                    "t": tok.text,
-                    "p": (LB_TAG_MAP.get(tok.tag_, "X") if lang == "lb" else tok.pos_),
-                    "o": tok.idx,
-                }
-                if tok.text != tok.lemma_:
-                    tok_dict["l"] = tok.lemma_
-
-                if tok.ent_type_:
-                    tok_dict["e"] = f"{tok.ent_iob_}-{tok.ent_type_}"
-
-                preprocessed_sent.append(tok_dict)
-
-            preprocessed_text.append({"lg": lang, "tok": preprocessed_sent})
+        preprocessed_text = process_text_with_spacy(
+            full_text, lang, self.language_proc_units[lang]
+        )
 
         return {
             "id": docid,
             "ts": timestamp,
+            "tsents": preprocessed_title,
             "sents": preprocessed_text,
             "model_id": self.model_versions[lang],
             "lid_path": lid_path,
