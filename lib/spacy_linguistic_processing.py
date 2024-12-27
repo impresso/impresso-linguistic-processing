@@ -27,8 +27,8 @@ from typing import Any, Dict, Generator, IO, Optional
 
 import dotenv
 import jsonschema
-from referencing import Registry, Resource
-from referencing.jsonschema import DRAFT7
+from jsonschema import Draft7Validator
+
 import smart_open
 import spacy
 
@@ -51,7 +51,7 @@ SCHEMA_BASE_URI = (
     "https://impresso.github.io/impresso-schemas/json/linguistic_annotation/"
 )
 
-IMPRESSO_SCHEMA = "ling_spacy.schema.json"
+IMPRESSO_SCHEMA = "lingproc.v2.schema.json"
 
 
 # TAG map for lb language processing
@@ -123,7 +123,7 @@ def process_text_with_spacy(text: str, lang: str, nlp: spacy.language.Language) 
 
             preprocessed_sent.append(tok_dict)
 
-        preprocessed_text.append({"lg": lang, "tok": preprocessed_sent})
+        preprocessed_text.append({"lg": lang, "tokens": preprocessed_sent})
 
     return preprocessed_text
 
@@ -140,14 +140,8 @@ def initialize_validator(
     ) as f:
         schema = json.load(f)
 
-    registry = Registry().with_resource(
-        schema_base_uri,
-        Resource.from_contents(schema),
-    )
-
-    validator = jsonschema.Draft7Validator(
-        schema=schema, resolver=registry.resolver(DRAFT7)
-    )
+    # Directly create the validator without a registry or a resolver
+    validator = Draft7Validator(schema)
     return validator
 
 
@@ -233,21 +227,28 @@ class LinguisticProcessing:
             args (argparse.Namespace): The command line arguments.
         """
         self.args = args
+
         self.S3_CLIENT = (
             get_s3_client()
             if self.args.INPUT.startswith("s3://")
             or str(self.args.lid).startswith("s3://")
             else None
         )
-        # Check if the output file already exists in S3 and avoid lengthy processing
-        if self.args.quit_if_s3_output_exists and (s3out := self.args.s3_output_path):
-            if s3_file_exists(self.S3_CLIENT, s3out):
-                log.warning(
-                    "%s exists. Exiting without processing %s", s3out, self.args.INPUT
-                )
-                exit(3)
-            else:
-                log.info("%s does not exist. Proceeding with processing.", s3out)
+        if not args.s3_output_dry_run:
+            # Check if the output file already exists in S3 and avoid lengthy processing
+            if self.args.quit_if_s3_output_exists and (
+                s3out := self.args.s3_output_path
+            ):
+                if s3_file_exists(self.S3_CLIENT, s3out):
+                    log.warning(
+                        "%s exists. Exiting without processing %s",
+                        s3out,
+                        self.args.INPUT,
+                    )
+                    exit(3)
+                else:
+                    log.info("%s does not exist. Proceeding with processing.", s3out)
+
         self.language_proc_units: Dict[str, spacy.language.Language] = {}
         self.lang_ident_data: Dict[str, str] | None = (
             read_langident(self.args.lid, client=self.S3_CLIENT)
@@ -311,7 +312,7 @@ class LinguisticProcessing:
             Optional[Dict[str, Any]]: The processed document or None if processing
                 fails.
         """
-        docid = json_obj["id"]
+        docid = json_obj.get("ci_id", json_obj.get("ci_ref", json_obj["id"]))
 
         full_text = json_obj.get(self.args.text_property)
         if full_text is None:
@@ -324,16 +325,21 @@ class LinguisticProcessing:
             return None
 
         full_text_len = len(full_text)
-        if full_text_len == 0:
+
+        title_text = json_obj.get("t", "")
+        title_text_len = len(title_text)
+
+        text_len = full_text_len + title_text_len
+        if text_len == 0:
             log.debug("Empty text: %s", docid)
             self.stats["CONTENT-ITEMS-EMPTY"] += 1
             return None
-        elif full_text_len < self.args.min_doc_length:
-            log.debug("Short text (%s chars): %s ", full_text_len, docid)
+        elif text_len < self.args.min_doc_length:
+            log.debug("Short text (%s chars): %s ", text_len, docid)
             self.stats["CONTENT-ITEMS-SHORT"] += 1
             return None
-        elif full_text_len > self.args.max_doc_length:
-            log.debug("Long text (%s chars): %s ", full_text_len, docid)
+        elif text_len > self.args.max_doc_length:
+            log.debug("Long text (%s chars): %s ", text_len, docid)
             self.stats["CONTENT-ITEMS-LONG"] += 1
             return None
 
@@ -370,7 +376,7 @@ class LinguisticProcessing:
         self.stats["CONTENT-ITEMS-OK"] += 1
         preprocessed_text = []
 
-        title_text = json_obj.get("t")
+        preprocessed_title = []
         if title_text:
             preprocessed_title = process_text_with_spacy(
                 title_text, lang, self.language_proc_units[lang]
@@ -381,14 +387,14 @@ class LinguisticProcessing:
         )
 
         return {
-            "id": docid,
+            "ci_id": docid,
             "ts": timestamp,
             "tsents": preprocessed_title,
             "sents": preprocessed_text,
             "model_id": self.model_versions[lang],
             "lid_path": lid_path,
             "lingproc_git": self.git_version,
-            "char_count": full_text_len,
+            "char_count": text_len,
             "min_chars": self.args.min_doc_length,
             "max_chars": self.args.max_doc_length,
         }
@@ -449,7 +455,7 @@ class LinguisticProcessing:
         log.info("File %s successfully processed locally.", infile)
 
         # Upload the output file to S3 if specified
-        if s3_outfile:
+        if not self.args.s3_output_dry_run and s3_outfile:
             upload_file_to_s3(self.S3_CLIENT, outfile, s3_outfile)
 
             if self.args.keep_timestamp_only:
@@ -504,7 +510,7 @@ class LinguisticProcessing:
         """
         try:
             self.schema_validator.validate(document)
-            log.debug("Document %s is valid", document["id"])
+            log.debug("Document %s is valid", document["ci_id"])
             return True
         except jsonschema.ValidationError as e:
             log.error("Validation error: %s", e)
@@ -531,8 +537,24 @@ if __name__ == "__main__":
     parser.add_argument(
         "-o", "--output-path", default="out.jsonl", help="Path to output file"
     )
-    parser.add_argument("--min-doc-length", type=int, default=50)
-    parser.add_argument("--max-doc-length", type=int, default=50000)
+    parser.add_argument(
+        "--min-doc-length",
+        type=int,
+        default=50,
+        help=(
+            "Minimum document length (title together with full text) to process"
+            " (default %(default)s)"
+        ),
+    )
+    parser.add_argument(
+        "--max-doc-length",
+        type=int,
+        default=50000,
+        help=(
+            "Maximum document length (title together with full text) to process"
+            " (default %(default)s)"
+        ),
+    )
     parser.add_argument(
         "--validate",
         action="store_true",
@@ -575,6 +597,15 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
+        "--s3-output-dry-run",
+        action="store_true",
+        help=(
+            "Dry run which suppresses all write operations to s3 and checks whether"
+            " output files on s3 exist. Implies also unsetting --keep-timestamp-only"
+            " and --quit-if-s3-output-exists flag."
+        ),
+    )
+    parser.add_argument(
         "--log-file",
         help=(
             "Path to the log file (compression depending on smart_open and file"
@@ -587,6 +618,9 @@ if __name__ == "__main__":
         help="Do not log to console, only to the log file (if specified).",
     )
     args = parser.parse_args()
+    if args.s3_output_dry_run:
+        args.keep_timestamp_only = False
+        args.quit_if_s3_output_exists = False
 
     # Configure logging
     if args.quiet:
@@ -610,4 +644,5 @@ if __name__ == "__main__":
 
     # Launching application...
     LinguisticProcessing(args).run()
+
     sys.exit(0)

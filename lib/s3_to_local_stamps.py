@@ -536,6 +536,10 @@ class S3Compressor:
                 f"The file {self.local_path} is not compressed. Proceeding with"
                 " compression.",
             )
+        except Exception as e:
+            log.error(
+                f"An error occurred while checking if the file is compressed: {e}"
+            )
 
         # Compress the file
         with open(self.local_path, "rb") as input_file:
