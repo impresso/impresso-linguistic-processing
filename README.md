@@ -108,21 +108,88 @@ S3 impresso infrastructure are set, e.g., by setting them in a local `.env` file
 
 The build process uploads the processed data to the impresso S3 bucket.
 
-Release notes:
+# Processing Workflow Overview
+
+This overview explains the impresso linguistic preprocessing pipeline, focusing on efficient data processing, distributed scalability, and minimizing interference between machines.
+
+## Key Features
+
+### Data Storage on S3
+
+All input and output data reside on S3, allowing multiple machines to access shared data without conflicts. Processing directly from S3 reduces the need for local storage.
+
+### Local Stamp Files
+
+Local **stamp files** mirror S3 metadata, enabling machines to independently track and manage processing tasks without downloading full datasets. This prevents interference between machines, as builds are verified against S3 before processing starts, ensuring no overwrites or duplicate results.
+
+### Makefile and Build Dependencies
+
+The Makefile orchestrates the pipeline by defining independent targets and dependencies based on stamp files. Each machine maintains its local state, ensuring stateless and conflict-free builds.
+
+### Running Local Commands
+
+Processing scripts operate independently, handling data in a randomized order. Inputs are read from S3, outputs are uploaded back to S3, and no synchronization is required between machines. Additional machines can join or leave without disrupting ongoing tasks.
+
+### Uploading Results to S3
+
+Processed files are validated locally and uploaded to S3 with integrity checks (e.g., JSON schema validation and md5sum). Results are never overwritten, ensuring consistency even with concurrent processing.
+
+### Handling Large Datasets on Small Machines
+
+By leveraging S3 and stamp files, machines with limited storage (e.g., 100GB) can process large datasets efficiently without downloading entire files.
+
+### Parallelization
+
+- **Local Parallelization**: Each machine uses Make's parallel build feature to maximize CPU utilization.
+- **Distributed Parallelization**: Machines process separate subsets of data independently (e.g., by newspaper or date range) and write results to S3 without coordination.
+
+### Multi-Machine Build Isolation
+
+- **Stateless Processing**: Scripts rely only on S3 and local configurations, avoiding shared state.
+- **Custom Configurations**: Each machine uses local configuration files or environment variables to tailor processing behavior.
+
+## Summary
+
+The impresso pipeline ensures scalable, distributed processing by:
+
+- Using **S3 for centralized storage** and avoiding shared local state.
+- Leveraging **local stamp files** for machine-specific tracking.
+- Defining **independent Makefile targets** for parallel builds.
+- Employing **stateless scripts** that operate independently.
+- Ensuring **concurrent data handling** through S3’s consistency features.
+
+This architecture supports efficient, isolated builds, enabling multiple machines to process large datasets seamlessly and reliably.
+
+# Release notes:
+
+- 2024-12-28: v2-0-0
+
+  - feat/fix: Process titles of content items (even if they sometimes are prefixes of the
+    full text) and store them in new tsents field.
+  - feat: use updated v2 json schema with ci_id as content item id
+  - feat: add sampling of processed content items for testing
+  - refactor: refactor monolithic Makefile into smaller reusable cookbook parts
 
 - 2024-11-30: v1-0-4
+
   - note: no change to spaCy pipelines and output content
   - fix: upload to s3 was not compressed. This has been fixed.
   - feat: separate s3 compression script to carefully compress uncompressed files on s3
   - chore: small improvements
+
 - 2024-11-27: v1-0-3
+
   - chore: improve logging and add length limit for input text
+
 - 2024-11-25: v1-0-1
+
   - fix: POS tagging of lb was buggy (all tags set to X). This has been fixed.
   - feat: Generate log files for each newspaper/year pair and upload it to s3.
   - feat: Support agreed nameing convention for output files.
   - feat: Process directly from s3 input data, on-the-fly mirroring per newspaper for
     slim builds
   - note: no change to spaCy pipelines apart from lb POS tag mapping
+
 - 2024-04-24: v1-0-0
+
   - First public release of the impresso linguistic processing pipeline.
