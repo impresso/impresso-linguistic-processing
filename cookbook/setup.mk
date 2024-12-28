@@ -11,4 +11,9 @@ $(call log.debug, COOKBOOK BEGIN INCLUDE: cookbook/setup.mk)
 	mkdir -p $@
 
 
-$(call log.debug, COOKBOOK BEGIN INCLUDE: cookbook/setup.mk)
+
+# Update Python package requirements
+update-requirements:
+	pipenv requirements > requirements.txt
+
+$(call log.debug, COOKBOOK END INCLUDE: cookbook/setup.mk)
