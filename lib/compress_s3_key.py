@@ -8,7 +8,7 @@ import s3_to_local_stamps
 
 log = logging.getLogger(__name__)
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)-15s %(filename)s:%(lineno)d %(levelname)s: %(message)s",
     force=True,
 )
