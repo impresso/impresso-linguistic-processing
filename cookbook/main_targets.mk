@@ -1,23 +1,35 @@
+###############################################################################
+# MAIN PROCESSING TARGETS
+# Core targets for newspaper processing pipeline
+###############################################################################
+
 $(call log.debug, COOKBOOK BEGIN INCLUDE: cookbook/main_targets.mk)
 
+# TARGET: newspaper
 # Process a single newspaper through the linguistic processing pipeline
-# Dependencies: sync and lingproc-target
+# Dependencies: 
+# - sync: Ensures data is synchronized
+# - lingproc-target: Performs the actual processing
 newspaper:
 	$(MAKE) sync
 	$(MAKE) lingproc-target
 
 PHONY_TARGETS += newspaper
 
-# Perform complete processing of a newspaper with fresh data
-# First performs resync (serially) then processing (in parallel)
+# TARGET: all
+# Complete processing with fresh data sync
+# Steps:
+# 1. Resync data (serial)
+# 2. Process data (parallel)
 all: 
 	$(MAKE) resync 
 	$(MAKE) $(MAKE_PARALLEL_OPTION) lingproc-target
 
 PHONY_TARGETS += all
 
-# Batch process multiple newspapers listed in NEWSPAPERS_TO_PROCESS_FILE
-# Runs 'make all' for each newspaper in the list
+# TARGET: collection
+# Process multiple newspapers from NEWSPAPERS_TO_PROCESS_FILE
+# Iterates through newspaper list and runs 'make all' for each
 collection: newspaper-list-target
 	for np in $(file < $(NEWSPAPERS_TO_PROCESS_FILE)) ; do \
 		$(MAKE) NEWSPAPER="$$np"  all  ; \
