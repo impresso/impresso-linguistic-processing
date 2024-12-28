@@ -1,4 +1,4 @@
-
+$(call log.debug, COOKBOOK BEGIN INCLUDE: cookbook/clean.mk)
 
 
 clean-newspaper: clean-sync
@@ -18,3 +18,6 @@ PHONY_TARGETS += resync
 
 resync-output: clean-sync-lingproc
 	$(MAKE) sync-output
+
+
+$(call log.debug, COOKBOOK END INCLUDE: cookbook/clean.mk)
