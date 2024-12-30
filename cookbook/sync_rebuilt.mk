@@ -30,7 +30,7 @@ $(IN_LOCAL_PATH_REBUILT).last_synced:
 	   $(IN_S3_PATH_REBUILT) \
 	   --local-dir $(BUILD_DIR) \
 	   --stamp-extension $(IN_LOCAL_REBUILT_STAMP_SUFFIX) \
-	   2> >(tee $@.log >&2) && \
+	   --logfile $@.log.gz && \
 	touch $@
 
 

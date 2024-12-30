@@ -43,7 +43,7 @@ $(OUT_LOCAL_PATH_LINGPROC).last_synced:
 	   $(OUT_S3_PATH_LINGPROC) \
 	   --local-dir $(BUILD_DIR) \
 	   --stamp-extension $(OUT_LOCAL_LINGPROC_STAMP_SUFFIX) \
-	   2> >(tee $@.log >&2) && \
+	   --logfile $@.log.gz && \
 	touch $@
 
 
@@ -71,8 +71,8 @@ $(IN_LOCAL_PATH_LANGIDENT).last_synced:
 	   $(IN_S3_PATH_LANGIDENT) \
 	   --local-dir $(BUILD_DIR) \
 	   --stamp-extension '' \
-	   2> >(tee $@.log >&2) && \
-	touch $@
+	   --logfile $@.log.gz \
+	&& touch $@
 
 
 

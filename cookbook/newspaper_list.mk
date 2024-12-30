@@ -1,5 +1,4 @@
-$(call log.debug, COOKBOOK BEGIN INCLUDE: cookbook/newspaper-list.mk)
-
+$(call log.debug, COOKBOOK BEGIN INCLUDE: cookbook/newspaper_list.mk)
 
 
 # A file containing a space-separated line with all newspapers to process
@@ -20,9 +19,11 @@ NEWSPAPER_YEAR_SORTING ?= shuf
 # Target 
 newspaper-list-target: $(NEWSPAPERS_TO_PROCESS_FILE)
 
+PHONY_TARGETS += newspaper-list-target
+
 # Rule to generate the file containing the newspapers to process
 # we shuffle the newspapers to avoid recomputations by different machines working on the dataset
-$(NEWSPAPERS_TO_PROCESS_FILE): $(BUILD_DIR)
+$(NEWSPAPERS_TO_PROCESS_FILE): | $(BUILD_DIR)
 	python -c \
 	"import lib.s3_to_local_stamps as m; import random; \
 	s3 = m.get_s3_resource(); \
@@ -34,4 +35,4 @@ $(NEWSPAPERS_TO_PROCESS_FILE): $(BUILD_DIR)
 	> $@
 
 
-$(call log.debug, COOKBOOK END INCLUDE: cookbook/newspaper-list.mk)
+$(call log.debug, COOKBOOK END INCLUDE: cookbook/newspaper_list.mk)
