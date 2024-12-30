@@ -23,17 +23,27 @@ PHONY_TARGETS += newspaper
 # 2. Process data (parallel)
 all: 
 	$(MAKE) resync 
-	$(MAKE) $(MAKE_PARALLEL_OPTION) lingproc-target
+	$(MAKE) -j $(MAKE_PARALLEL_PROCESSING_NEWSPAPER_YEAR) lingproc-target
 
 PHONY_TARGETS += all
 
+# Maximum number of parallel newspaper processes
+# Can be overridden via command line: make PARALLEL_NEWSPAPERS=4 collection
+PARALLEL_NEWSPAPERS ?= 2
+
 # TARGET: collection
-# Process multiple newspapers from NEWSPAPERS_TO_PROCESS_FILE
-# Iterates through newspaper list and runs 'make all' for each
+# Process multiple newspapers with controlled parallelism
+# Uses xargs for parallel execution with PARALLEL_NEWSPAPERS limit
 collection: newspaper-list-target
-	for np in $(file < $(NEWSPAPERS_TO_PROCESS_FILE)) ; do \
-		$(MAKE) NEWSPAPER="$$np"  all  ; \
-	done
+	cat $(NEWSPAPERS_TO_PROCESS_FILE) | \
+	xargs -n 1 -P $(PARALLEL_NEWSPAPERS) -I {} \
+		$(MAKE) NEWSPAPER={} all
+
+# Alternative implementation using GNU parallel
+# collection: newspaper-list-target
+#	cat $(NEWSPAPERS_TO_PROCESS_FILE) | \
+#	parallel -j $(PARALLEL_NEWSPAPERS) \
+#		"$(MAKE) NEWSPAPER={} all"
 
 PHONY_TARGETS += collection
 
