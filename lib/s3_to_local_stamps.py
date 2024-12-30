@@ -24,13 +24,14 @@ import fnmatch
 import os
 import time
 import sys
-from typing import Any, Tuple, Optional
+from typing import Any, Tuple, Optional, Sequence
 import bz2
 import boto3
 import hashlib
 import traceback
 import smart_open
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
 log = logging.getLogger(__name__)
@@ -648,7 +649,7 @@ class LocalStampCreator(object):
             last_modified = s3_object.last_modified
 
             # Skip directories and zero-size objects
-            if s3_key.endswith("/"):
+            if s3_key.endswith("/") or s3_object.size == 0:
                 local_dir = os.path.join(self.args.local_dir, s3_key)
                 if not os.path.exists(local_dir):
                     os.makedirs(local_dir)
@@ -719,8 +720,15 @@ class LocalStampCreator(object):
         log.info(f"'{local_file_path}' created. Last modification: {last_modified}")
 
 
-if __name__ == "__main__":
+def parse_arguments(args: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    """Parse command-line arguments.
 
+    Args:
+        args: Command-line arguments (uses sys.argv if None)
+
+    Returns:
+        argparse.Namespace: Parsed arguments
+    """
     parser = argparse.ArgumentParser(
         description="S3 to Local Stamp File Creator",
         epilog="Utility to mirror S3 file structure locally with stamp files.",
@@ -750,7 +758,6 @@ if __name__ == "__main__":
         help="Set the logging level. Default: %(default)s",
     )
     parser.add_argument("--logfile", help="Write log to FILE", metavar="FILE")
-
     parser.add_argument(
         "--local-dir",
         default="./",
@@ -793,8 +800,44 @@ if __name__ == "__main__":
             " with option --list-files."
         ),
     )
-    arguments = parser.parse_args()
 
+    return parser.parse_args(args)
+
+
+def setup_logging(log_level: str, log_file: Optional[Path]) -> None:
+    """Configure logging.
+
+    Args:
+        log_level: Logging level as a string
+        log_file: Path to the log file
+    """
+
+    class SmartFileHandler(logging.FileHandler):
+        def _open(self):
+            return smart_open.open(self.baseFilename, self.mode, encoding="utf-8")
+
+    handlers = [logging.StreamHandler()]
+    if log_file:
+        handlers.append(SmartFileHandler(str(log_file), mode="w"))
+
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)-15s %(filename)s:%(lineno)d %(levelname)s: %(message)s",
+        handlers=handlers,
+        force=True,
+    )
+
+
+def main(args: Optional[Sequence[str]] = None) -> None:
+    """Main function to run the stamp creator.
+
+    Args:
+        args: Command-line arguments (uses sys.argv if None)
+    """
+    # Parse arguments
+    arguments = parse_arguments(args)
+
+    # Setup logging
     to_logging_level = {
         "CRITICAL": logging.CRITICAL,
         "ERROR": logging.ERROR,
@@ -802,12 +845,13 @@ if __name__ == "__main__":
         "INFO": logging.INFO,
         "DEBUG": logging.DEBUG,
     }
-    logging.basicConfig(
-        level=to_logging_level[arguments.level],
-        format="%(asctime)-15s %(filename)s:%(lineno)d %(levelname)s: %(message)s",
-        force=True,
+    setup_logging(
+        to_logging_level[arguments.level],
+        Path(arguments.logfile) if arguments.logfile else None,
     )
+
     log.info("Arguments: %s", arguments)
+
     try:
         processor = LocalStampCreator(arguments)
         processor.run()
@@ -815,3 +859,7 @@ if __name__ == "__main__":
         print(f"An error occurred: {e}", file=sys.stderr)
         log.error("Traceback: %s", traceback.format_exc())
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
