@@ -11,7 +11,7 @@ def format_sentences(sentences: List[Dict]) -> str:
     """Format sentences as TOKEN1/POSTAG1 TOKEN2/POSTAG2."""
     result = []
     for sent in sentences:
-        tokens = [f"{t['t']}/{t['p']}" for t in sent["tok"]]
+        tokens = [f"{t['t']}/{t['p']}" for t in sent["tokens"]]
         result.append(" ".join(tokens))
     return " || ".join(result)
 
@@ -28,7 +28,7 @@ def explore_output(
                 doc = json.loads(line)
                 doc_id = doc.get("ci_id", "No ID")
 
-                print(f"Document ID: {doc_id}")
+                print(f"Document ID: https://impresso-project.ch/app/article/{doc_id}")
                 # Format title
                 title = doc.get("tsents", [])[:3]
                 formatted_title = format_sentences(title)
