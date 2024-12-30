@@ -1,9 +1,12 @@
 $(call log.debug, COOKBOOK BEGIN INCLUDE: cookbook/processing_lingproc.mk)
 
-###
-# S3 STORAGE UPDATE SETTINGS
+###############################################################################
+# LINGUISTIC PROCESSING TARGETS
+# Targets for processing newspaper content with linguistic analysis
+###############################################################################
 
-# set to --validate for schema validation of the output
+# Configuration for S3 storage updates
+# Set to --validate for schema validation of output
 LINGPROC_VALIDATE_OPTION ?= --validate
   $(call log.debug, LINGPROC_VALIDATE_OPTION)
 
@@ -82,7 +85,7 @@ $(OUT_LOCAL_PATH_LINGPROC)/%.jsonl.bz2: $(IN_LOCAL_PATH_REBUILT)/%.jsonl.bz2.sta
             $(call local_to_s3,$@,.stamp).log.gz \
             --upload-file $@.log.gz \
 			--force-overwrite ; \
-    elif [ $$EXIT_CODE -eq 3 ]; then \
+    elif [ $$EXIT_CODE -eq 3]; then \
         echo "Processing skipped (output exists on S3). Not uploading logfile." ; \
         rm -f $@ ; \
         exit 0 ; \

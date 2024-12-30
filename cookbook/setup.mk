@@ -1,18 +1,17 @@
 $(call log.debug, COOKBOOK BEGIN INCLUDE: cookbook/setup.mk)
 
-# general setup and functionality for running the cookbook
+###############################################################################
+# GENERAL SETUP TARGETS
+# Basic setup functionality and directory management
+###############################################################################
 
-
-
-
-
-# Create directory if it doesn't exist
+# TARGET: %.d
+# Creates directory if it doesn't exist
 %.d:
 	mkdir -p $@
 
-
-
-# Update Python package requirements
+# TARGET: update-requirements
+# Updates Python package requirements from Pipenv
 update-requirements:
 	pipenv requirements > requirements.txt
 

@@ -1,5 +1,10 @@
 $(call log.debug, COOKBOOK BEGIN INCLUDE: cookbook/setup_lingproc.mk)
 
+###############################################################################
+# SETUP TARGETS
+# Targets for setting up the linguistic processing environment
+###############################################################################
+
 # Detect the operating system
 OS ?= $(shell uname -s)
   $(call log.debug, OS)
@@ -18,16 +23,17 @@ else ifeq ($(OS),Darwin)
 endif
   $(call log.debug, INSTALLER)
 
-# Prepare the local directories
+# TARGET: setup
+# Prepares local directories and validates dependencies
 setup:
 	# Create the local directory
 	mkdir -p $(IN_LOCAL_PATH_REBUILT)
 	mkdir -p $(OUT_LOCAL_PATH_LINGPROC)
-	#$(MAKE) check-python-installation
-	# Sync the newspaper media list to process (testing s3 connectivity as well)
 	$(MAKE) newspaper-list-target
 	$(MAKE) check-spacy-pipelines
 
+# TARGET: check-spacy-pipelines
+# Validates spacy pipeline installations
 check-spacy-pipelines:
 	$(MAKE_SILENCE_RECIPE)python3 -m spacy validate || \
 	{ echo "Spacy pipelines are not properly installed! Please install the required pipelines." ; exit 1; }
