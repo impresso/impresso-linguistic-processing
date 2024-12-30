@@ -6,7 +6,7 @@
 # SETTINGS FOR THE MAKE PROGRAM
 
 # Define the shell to use for executing commands
-SHELL := /bin/bash
+SHELL := /bin/dash
 
 # Enable strict error handling
 export SHELLOPTS := errexit:pipefail
@@ -46,9 +46,16 @@ else
 endif
   $(call log.debug, MAKE_SILENCE_RECIPE)
 
-# Set the number of parallel embedding jobs to run
-MAKE_PARALLEL_OPTION ?= --jobs 2
-  $(call log.debug, MAKE_PARALLEL_OPTION)
+
+# Set the number of parallel launches of newspapers (uses xargs)
+# Note: For efficient parallelization the number of cores should be PARALLEL_NEWSPAPERS * MAKE_PARALLEL_PROCESSING_NEWSPAPER_YEAR
+PARALLEL_NEWSPAPERS ?= 1
+  $(call log.debug, PARALLEL_NEWSPAPERS)
+
+# Set the number of parallel jobs of newspaper-year files to process
+MAKE_PARALLEL_PROCESSING_NEWSPAPER_YEAR ?= 1 
+  $(call log.debug, MAKE_PARALLEL_PROCESSING_NEWSPAPER_YEAR)
+
 
 # Get the current git version
 ifndef git_version
@@ -66,7 +73,7 @@ BUILD_DIR ?= build.d
   $(call log.debug, BUILD_DIR)
 
 # Specify the newspaper to process. Just a suffix appended to the s3 bucket name
-# s3 is ok! Can also be actionfem/actionfem-1933
+# is ok! Can also be something like actionfem/actionfem-1933 to restrict further
 NEWSPAPER ?= actionfem
   $(call log.info, NEWSPAPER)
 
@@ -104,6 +111,9 @@ include cookbook/input_paths_langident.mk
 
 # Load output path definitions for linguistic processing
 include cookbook/output_paths_lingproc.mk 
+
+# Load general setup
+include cookbook/setup.mk
 
 # Load setup rules for linguistic processing
 include cookbook/setup_lingproc.mk
