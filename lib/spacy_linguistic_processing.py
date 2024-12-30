@@ -326,8 +326,8 @@ class LinguisticProcessing:
 
         full_text_len = len(full_text)
 
-        title_text = json_obj.get("t", "")
-        title_text_len = len(title_text)
+        title_text = json_obj.get("t")
+        title_text_len = len(title_text) if title_text else 0
 
         text_len = full_text_len + title_text_len
         if text_len == 0:
