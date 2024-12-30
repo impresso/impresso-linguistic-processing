@@ -1,24 +1,22 @@
 $(call log.debug, COOKBOOK BEGIN INCLUDE: cookbook/newspaper_list.mk)
 
+###############################################################################
+# NEWSPAPER LIST MANAGEMENT
+# Configuration and generation of newspaper processing lists
+###############################################################################
 
-# A file containing a space-separated line with all newspapers to process
-# Feel free to handcraft another file with the newspapers you want to process
-# This file is automatically populated from the content of s3 rebuilt bucket
+# Configuration file containing space-separated newspapers to process
 NEWSPAPERS_TO_PROCESS_FILE ?= $(BUILD_DIR)/newspapers.txt
   $(call log.debug, NEWSPAPERS_TO_PROCESS_FILE)
 
-# When determining the order of years of a newspaper to process, order them by recency
-# (default or order them randomly? By recency, larger newer years are processed first,
-# avoiding waiting for the most recent years to be processed). By random order,
-# recomputations by different machines working on the dataset are less likely to happen.
+# Processing order configuration
+# Set to 'shuf' for random order or 'cat' for chronological
 NEWSPAPER_YEAR_SORTING ?= shuf
-# for the default order, comment the line above and uncomment the line below
-#NEWSPAPER_YEAR_SORTING ?= cat
   $(call log.debug, NEWSPAPER_YEAR_SORTING)
 
-# Target 
+# TARGET: newspaper-list-target
+# Generates list of newspapers to process from S3 bucket
 newspaper-list-target: $(NEWSPAPERS_TO_PROCESS_FILE)
-
 PHONY_TARGETS += newspaper-list-target
 
 # Rule to generate the file containing the newspapers to process

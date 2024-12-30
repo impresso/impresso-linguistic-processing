@@ -1,16 +1,16 @@
+###############################################################################
+# INPUT PATHS FOR REBUILT CONTENT
+# Defines paths and variables for accessing rebuilt newspaper content from S3
+###############################################################################
+
 $(call log.debug, COOKBOOK BEGIN INCLUDE: cookbook/input_paths_rebuilt.mk)
 
-# DEFINING THE REQUIRED DATA INPUT PATHS
-# all paths are defined as s3 paths and local paths
-# local paths are relative to $BUILD_DIR
-# s3 paths are relative to the bucket
-# The paths are defined as variables to make it easier to change them in the future.
-# Input paths start with IN_ and output paths with OUT_
-# Make variables for s3 paths are defined as OUT_S3_ or IN_S3_
-# If more than one input is needed, the variable names are IN_1_S3_ or OUT_2_S3_
-# Make variables for local paths are defined as OUT_LOCAL_ or IN_LOCAL_
+# Variable naming conventions:
+# - Input paths start with IN_
+# - S3 paths use _S3_ prefix
+# - Local paths use _LOCAL_ prefix
 
-# The input bucket
+# The input bucket for rebuilt content
 IN_S3_BUCKET_REBUILT ?= 22-rebuilt-final
   $(call log.debug, IN_S3_BUCKET_REBUILT)
 
