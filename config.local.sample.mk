@@ -1,63 +1,65 @@
 # adapt any variable here
 
-
 # Sample configuration for local build settings
 
-# # Set the logging level: DEBUG, INFO, WARNING, ERROR
-# LOGGING_LEVEL ?= INFO
+# Set the logging level: DEBUG, INFO, WARNING, ERROR
+LOGGING_LEVEL ?= INFO
 
-# # Set the number of parallel embedding jobs to run
-# MAKE_PARALLEL_OPTION ?= --jobs 4
+# The build directory where all local input and output files are stored
+BUILD_DIR ?= build.d
 
-# # Set the Git version (default is the output of `git describe --tags --always`)
-# GIT_VERSION ?= $(shell git describe --tags --always)
+# Specify the newspaper to process. Just a suffix appended to the s3 bucket name
+NEWSPAPER ?= actionfem
 
-# # The build directory where all local input and output files are stored
-# BUILD_DIR ?= build.d
+# A file containing a space-separated line with all newspapers to process
+NEWSPAPERS_TO_PROCESS_FILE ?= $(BUILD_DIR)/newspapers.txt
 
-# # Specify the newspaper to process. Just a suffix appended to the s3 bucket name
-# NEWSPAPER ?= actionfem
+# Order the years of a newspaper to process by recency (default is random order)
+NEWSPAPER_YEAR_SORTING ?= shuf
+# For the default order, comment the line above and uncomment the line below
+# NEWSPAPER_YEAR_SORTING ?= cat
 
-# # A file containing a space-separated line with all newspapers to process
-# NEWSPAPERS_TO_PROCESS_FILE ?= $(BUILD_DIR)/newspapers.txt
+# The input bucket for rebuilt data
+IN_S3_BUCKET_REBUILT ?= 22-rebuilt-final
 
-# # Order the years of a newspaper to process by recency (default is random order)
-# NEWSPAPER_YEAR_SORTING ?= shuf
-# # For the default order, comment the line above and uncomment the line below
-# # NEWSPAPER_YEAR_SORTING ?= cat
+# The run version for input data
+IN_RUN_VERSION_LANGINDENT ?= v1-4-4
 
-# # The input bucket for rebuilt data
-# IN_S3_BUCKET_REBUILT ?= 22-rebuilt-final
+# The output bucket for processed data
+OUT_S3_BUCKET_LINGPROC ?= 40-processed-data-sandbox
 
-# # The input bucket for processed data
-# IN_S3_BUCKET_PROCESSED_DATA ?= 42-processed-data-final
+# The task for output data
+OUT_TASK_LINGPROC ?= pos
 
-# # The process label for input data
-# IN_PROCESS_LABEL ?= langident
+# The model ID for output data
+OUT_MODEL_ID_LINGPROC ?= spacy_v3.6.0-multilingual
 
-# # The run version for input data
-# IN_RUN_VERSION ?= v1-4-4
+# The run version for output data
+OUT_RUN_VERSION_LINGPROC ?= v2-0-0
 
-# # The output bucket for processed data
-# OUT_S3_BUCKET_PROCESSED_DATA ?= 40-processed-data-sandbox
+# Prevent any output to S3 even if s3-output-path is set
+LINGPROC_S3_OUTPUT_DRY_RUN ?=
 
-# # The process label for output data
-# OUT_PROCESS_LABEL ?= lingproc
+# Keep only the local timestamp output files after uploading
+LINGPROC_KEEP_TIMESTAMP_ONLY_OPTION ?= --keep-timestamp-only
 
-# # The task for output data
-# OUT_TASK ?= pos
+# Quit the processing if the output file already exists in S3
+LINGPROC_QUIT_IF_S3_OUTPUT_EXISTS_OPTION ?= --quit-if-s3-output-exists
 
-# # The model ID for output data
-# OUT_MODEL_ID ?= spacy_v3.6.0-multilingual
+# Set the number of parallel launches of newspapers (uses xargs)
+PARALLEL_NEWSPAPERS ?= 1
 
-# # The run version for output data
-# OUT_RUN_VERSION ?= v1-0-2
+# Set the number of parallel jobs of newspaper-year files to process
+MAKE_PARALLEL_PROCESSING_NEWSPAPER_YEAR ?= 1
 
-# # Prevent any output to S3 even if s3-output-path is set
-# PROCESSING_S3_OUTPUT_DRY_RUN ?=
+# The local path for rebuilt data
+IN_LOCAL_PATH_REBUILT ?= $(BUILD_DIR)/$(IN_S3_BUCKET_REBUILT)/$(NEWSPAPER)
 
-# # Keep only the local timestamp output files after uploading
-# PROCESSING_KEEP_TIMESTAMP_ONLY_OPTION ?= --keep-timestamp-only
+# The local path for language identification data
+IN_LOCAL_PATH_LANGIDENT ?= $(BUILD_DIR)/$(IN_S3_BUCKET_PROCESSED_DATA)/$(IN_PROCESS_LABEL_LANGINDENT)/$(IN_RUN_VERSION_LANGINDENT)/$(NEWSPAPER)
 
-# # Quit the processing if the output file already exists in S3
-# PROCESSING_QUIT_IF_S3_OUTPUT_EXISTS ?= --quit-if-s3-output-exists
+# The local path for linguistic processing output
+OUT_LOCAL_PATH_LINGPROC ?= $(BUILD_DIR)/$(OUT_S3_BUCKET_LINGPROC)/$(OUT_PROCESS_LABEL_LINGPROC)$(OUT_PROCESS_SUBTYPE_LABEL_LINGPROC)/$(OUT_RUN_ID_LINGPROC)/$(NEWSPAPER)
+
+# The S3 path for linguistic processing output
+OUT_S3_PATH_LINGPROC ?= s3://$(OUT_S3_BUCKET_LINGPROC)/$(OUT_PROCESS_LABEL_LINGPROC)$(OUT_PROCESS_SUBTYPE_LABEL_LINGPROC)/$(OUT_RUN_ID_LINGPROC)/$(NEWSPAPER)
