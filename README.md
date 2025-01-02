@@ -75,10 +75,10 @@ The build process is controlled by the `Makefile`. Main targets include:
 ```sh
 make help                    # show available targets
 make setup                   # initialize development environment
-make newspaper -j N          # process specific newspaper/year pairs in parallel
+make newspaper          # process specific newspaper/year pairs in parallel
 make collection              # process all newspapers
 make clean                   # clean build artifacts
-make distclean               # remove all generated files
+make clean-build               # remove all generated files
 ```
 
 ## Processing options
