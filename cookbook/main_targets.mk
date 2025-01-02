@@ -35,7 +35,7 @@ PARALLEL_NEWSPAPERS ?= 2
 # Process multiple newspapers with controlled parallelism
 # Uses xargs for parallel execution with PARALLEL_NEWSPAPERS limit
 collection: newspaper-list-target
-	cat $(NEWSPAPERS_TO_PROCESS_FILE) | \
+	tr " " "\n" < $(NEWSPAPERS_TO_PROCESS_FILE) | \
 	xargs -n 1 -P $(PARALLEL_NEWSPAPERS) -I {} \
 		$(MAKE) NEWSPAPER={} all 
 
