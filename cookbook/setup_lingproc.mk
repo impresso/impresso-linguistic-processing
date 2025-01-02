@@ -53,8 +53,4 @@ check-python-installation:
 	# OK: PYTHON ENVIRONMENT IS FINE!
 
 PHONY_TARGETS +=  check-python-installation
-update-requirements:
-	pipenv requirements > requirements.txt
-
-PHONY_TARGETS += update-requirements
 $(call log.debug, COOKBOOK END INCLUDE: cookbook/setup_lingproc.mk)
