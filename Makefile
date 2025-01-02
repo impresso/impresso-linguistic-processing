@@ -82,7 +82,7 @@ help:
 	@echo "Usage: make <target>"
 	@echo "Targets:"
 	@echo "  setup                 # Prepare the local directories"
-	@echo "  collection            # Call `make all` for each newspaper found in the file $(NEWSPAPERS_TO_PROCESS_FILE)"
+	@echo "  collection            # Call make all for each newspaper found in the file $(NEWSPAPERS_TO_PROCESS_FILE)"
 	@echo "  all                   # Resync the data from the S3 bucket to the local directory and process all years of a single newspaper"
 	@echo "  newspaper             # Process a single newspaper for all years"
 	@echo "  sync                  # Sync the data from the S3 bucket to the local directory"
