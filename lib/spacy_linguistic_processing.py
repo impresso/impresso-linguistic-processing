@@ -124,7 +124,7 @@ def analyze_title_in_text(title: str, full_text: str) -> Dict[str, bool]:
     }
     # Check for "UNKNOWN" or "UNTITLED" in title
     if title.strip().upper() in {"UNKNOWN", "UNTITLED"}:
-        analysis["UNK"] = True
+        analysis["unknown"] = True
         return analysis
 
     if re.match(ADVERTISEMENT, title):
@@ -452,8 +452,15 @@ class LinguisticProcessing:
         if lang not in LANG2MODEL:
             log.error("No spacy model for language %s: content item: %s", lang, docid)
             return None
+
         if lang not in self.language_proc_units:
             self.create_lpu(lang)
+        title_status = {}
+        if title_text:
+            title_status = analyze_title_in_text(title_text, full_text)
+        if title_status.get("unknown"):
+            self.stats["CONTENT-ITEMS-TITLE-unknown"] += 1
+            title_text = ""
 
         self.stats["CONTENT-ITEMS-OK"] += 1
         preprocessed_text = []
@@ -467,8 +474,10 @@ class LinguisticProcessing:
         preprocessed_text = process_text_with_spacy(
             full_text, lang, self.language_proc_units[lang]
         )
-
-        return {
+        title_status = {k: v for k, v in title_status.items() if v is not None}
+        for k, v in title_status.items():
+            self.stats[f"TITLE-STATUS-{k}"] += 1
+        result = {
             "ci_id": docid,
             "ts": timestamp,
             "tsents": preprocessed_title,
@@ -479,7 +488,10 @@ class LinguisticProcessing:
             "char_count": text_len,
             "min_chars": self.args.min_doc_length,
             "max_chars": self.args.max_doc_length,
+            "title_status": title_status,
         }
+
+        return result
 
     def run(self) -> None:
         """
