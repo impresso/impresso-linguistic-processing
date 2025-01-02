@@ -834,6 +834,8 @@ def main(args: Optional[Sequence[str]] = None) -> None:
     Args:
         args: Command-line arguments (uses sys.argv if None)
     """
+    if args is None:
+        args = sys.argv[1:]
     # Parse arguments
     arguments = parse_arguments(args)
 

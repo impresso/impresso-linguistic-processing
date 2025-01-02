@@ -32,7 +32,8 @@ LINGPROC_QUIT_IF_S3_OUTPUT_EXISTS_OPTION ?= --quit-if-s3-output-exists
 #LINGPROC_QUIT_IF_S3_OUTPUT_EXISTS_OPTION ?=
   $(call log.debug, LINGPROC_QUIT_IF_S3_OUTPUT_EXISTS_OPTION)
 
-LINGPROC_QUIET_OPTION ?= --quiet
+# @TODO: Add a quiet option to the processing script
+LINGPROC_QUIET_OPTION ?= 
   $(call log.debug, LINGPROC_QUIET_OPTION)
 
 # variable for all locally available rebuilt stamp files. Needed for dependency tracking

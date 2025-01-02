@@ -21,9 +21,11 @@ import collections
 import json
 import logging
 import os
+import re
 import sys
 import time
-from typing import Any, Dict, Generator, IO, Optional
+from typing import Any, Dict, Generator, IO, Optional, Sequence
+from pathlib import Path
 
 import dotenv
 import jsonschema
@@ -90,6 +92,81 @@ def map_tag(tag: str, lang: str) -> str:
     if lang == "lb":
         return LB_TAG_MAP.get(tag, "X")
     return tag
+
+
+def analyze_title_in_text(title: str, full_text: str) -> Dict[str, bool]:
+    """Analyze the relationship between the title and the full text.
+
+    Args:
+        title: The title string
+        full_text: The full text string
+
+    Returns:
+        Dict[str, bool]: Analysis results
+    """
+    ADVERTISEMENT = re.compile(
+        r"""^
+      \s* adv\. \s* \d+ \s* page \s* \d+ \s*
+    | \s* publicité \s* \d+ page \s* \d+ \s*
+    $""",
+        flags=re.IGNORECASE + re.VERBOSE,
+    )
+    len_title = len(title)
+    len_full_text = len(full_text)
+    analysis = {
+        "exact_prefix": False,
+        "ellipsis": None,
+        "alnum_prefix": None,
+        "alnum_infix": None,
+        "unknown": None,
+        "title_longer": len_title > len_full_text,
+        "advertisement": None,
+    }
+    # Check for "UNKNOWN" or "UNTITLED" in title
+    if title.strip().upper() in {"UNKNOWN", "UNTITLED"}:
+        analysis["UNK"] = True
+        return analysis
+
+    if re.match(ADVERTISEMENT, title):
+        analysis["advertisement"] = True
+        return analysis
+
+    # Check if title is longer than full text
+    # We do not need to further analyze in this case
+    if len_title > len_full_text:
+        return analysis
+
+    # Check for exact prefix match
+    # there are rare cases where the actual title ends with ...
+    # https://impresso-project.ch/app/issue/armeteufel-1911-06-04-a/view?p=1&articleId=i0010
+    if full_text.startswith(title):
+        analysis["exact_prefix"] = True
+        return analysis
+
+    # Check for ellipsis and remove if present
+    if title.endswith("..."):
+        analysis["ellipsis"] = True
+        title = title[:-3]
+
+    if full_text.startswith(title):
+        analysis["exact_prefix"] = True
+        return analysis
+
+    alphanum_title = "".join(c for c in title if c.isalnum())
+    alphanum_text = "".join(c for c in full_text if c.isalnum())
+    if alphanum_text.startswith(alphanum_title):
+        analysis["alnum_prefix"] = True
+        return analysis
+
+    # Sometimes the actual title has a preceding smaller subtitle and therefore is not
+    # the prefix of the full text. In order to not overmatch, we only test this if at
+    # least one whitespace is present in the title and the title is at least 20
+    # characters long
+    if " " in title and len_title >= 20:
+        if alphanum_title in alphanum_text:
+            analysis["alnum_infix"] = True
+            return analysis
+    return analysis
 
 
 def process_text_with_spacy(text: str, lang: str, nlp: spacy.language.Language) -> list:
@@ -327,6 +404,11 @@ class LinguisticProcessing:
         full_text_len = len(full_text)
 
         title_text = json_obj.get("t")
+        if title_text:
+            self.stats["CONTENT-ITEMS-WITH-TITLE"] += 1
+        else:
+            self.stats["CONTENT-ITEMS-WITHOUT-TITLE"] += 1
+
         title_text_len = len(title_text) if title_text else 0
 
         text_len = full_text_len + title_text_len
@@ -417,7 +499,8 @@ class LinguisticProcessing:
         log.info("Processing %s %s %s", infile, collection, year)
 
         with smart_open.open(outfile, "w") as out:
-            # make sure that the file is not empty and in case of bz2 that it is a valid file!
+            # make sure that the file is not empty and in case of bz2 that it is a valid
+            # file!
             out.write("")
             doc_iter = enumerate(get_next_doc(infile, client=self.S3_CLIENT), start=1)
             for i, json_obj in doc_iter:
@@ -462,7 +545,9 @@ class LinguisticProcessing:
                 keep_timestamp_only(outfile)
 
     def upload_file_to_s3(self, local_file_path: str, s3_path: str) -> None:
-        """Uploads a local file to an S3 bucket if it doesn't already exist and verifies the upload."""
+        """Uploads a local file to an S3 bucket if it doesn't already exist and verifies
+        the upload."""
+
         bucket, key = parse_s3_path(s3_path)
         if s3_file_exists(self.S3_CLIENT, bucket, key):
             log.warning(
@@ -520,14 +605,43 @@ class LinguisticProcessing:
             return False
 
 
-if __name__ == "__main__":
+def setup_logging(log_level: str = "INFO", log_file: Optional[Path] = None) -> None:
+    """Configure logging with smart_open support.
+
+    Args:
+        log_level: Logging level as a string
+        log_file: Path to the log file
+    """
+
+    class SmartFileHandler(logging.FileHandler):
+        def _open(self):
+            return smart_open.open(self.baseFilename, self.mode, encoding="utf-8")
+
+    handlers = [logging.StreamHandler()]
+    if log_file:
+        handlers.append(SmartFileHandler(str(log_file), mode="w"))
+
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s %(levelname)s: %(message)s",
+        handlers=handlers,
+        force=True,
+    )
+
+
+def parse_arguments(args: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    """Parse command-line arguments.
+
+    Args:
+        args: Command-line arguments (uses sys.argv if None)
+
+    Returns:
+        argparse.Namespace: Parsed arguments
+    """
+    if args is None:
+        args = sys.argv[1:]
     parser = argparse.ArgumentParser(
-        description=(
-            "Linguistically process texts with POS tagging, lemmatization, etc. If"
-            " --quit-if-s3-output-exists is set, the script will exit with exit code 3"
-            " without processing if the output file already exists in the specified S3"
-            " bucket."
-        )
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument(help="Path to impresso rebuilt file", dest="INPUT")
     parser.add_argument("--lid", help="Path to language identification file")
@@ -606,43 +720,40 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
-        "--log-file",
-        help=(
-            "Path to the log file (compression depending on smart_open and file"
-            " extension)"
-        ),
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        help="Logging level",
     )
-    parser.add_argument(
-        "--quiet",
-        action="store_true",
-        help="Do not log to console, only to the log file (if specified).",
-    )
-    args = parser.parse_args()
-    if args.s3_output_dry_run:
-        args.keep_timestamp_only = False
-        args.quit_if_s3_output_exists = False
+    parser.add_argument("-l", "--log-file", type=Path, help="Log file path")
 
-    # Configure logging
-    if args.quiet:
-        log_handlers = []
-    else:
-        log_handlers = [logging.StreamHandler()]
-    if args.log_file:
+    options = parser.parse_args(args)
 
-        class SmartFileHandler(logging.FileHandler):
-            def _open(self):
-                return smart_open.open(self.baseFilename, self.mode, encoding="utf-8")
+    if options.s3_output_dry_run:
+        options.keep_timestamp_only = False
+        options.quit_if_s3_output_exists = False
+    return options
 
-        log_handlers.append(SmartFileHandler(args.log_file, mode="w"))
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)-15s %(filename)s:%(lineno)d %(levelname)s: %(message)s",
-        handlers=log_handlers,
-        force=True,
-    )
-    log.info("Called with args: %s", args)
 
+def main(args: Optional[Sequence[str]] = None) -> None:
+    """Main function to run the processor.
+
+    Args:
+        args: Command-line arguments (uses sys.argv if None)
+    """
+    # Parse arguments
+    options = parse_arguments(args)
+
+    # Setup logging
+    setup_logging(options.log_level, options.log_file)
+
+    log.info("Called with args: %s", options)
+    app = LinguisticProcessing(options)
     # Launching application...
-    LinguisticProcessing(args).run()
+    app.run()
 
     sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
