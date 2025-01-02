@@ -20,20 +20,14 @@ und unknown licencing status. We set the version and name in the model's meta da
 ## Prerequisites
 
 The build process has been tested on modern Linux and macOS systems and requires
-Python 3.11. Under Ubuntu/Debian
-, make sure to have the following packages installed:
+Python 3.11. Under Ubuntu/Debian, make sure to have the following packages installed:
 
 ```sh
-# install python3.11 according to your OS
-sudo apt update
-sudo apt upgrade -y
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt update
-sudo apt install python3.11 -y
-sudo apt install python3.11-distutils -y
-curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
-sudo apt install git git-lfs make moreutils coreutils parallel # needed for building
-sudo apt jq  # needed for computing statistics
+# install linux tools and python3.11 according on Debian/Ubuntu
+sudo bash cookbook/install_apt.sh
+
+# on macos with brew
+sudo bash cookbook/install_brew.sh
 ```
 
 This repository uses `pipenv`.
@@ -74,21 +68,40 @@ cp config.local.mk.sample config.local.mk
 edit config.local.mk
 ```
 
-## Running the pipeline
+## Available Make targets
 
-The build process is controlled by the `Makefile`.
+The build process is controlled by the `Makefile`. Main targets include:
 
 ```sh
-make help  # show available targets
+make help                    # show available targets
+make setup                   # initialize development environment
+make newspaper -j N          # process specific newspaper/year pairs in parallel
+make collection              # process all newspapers
+make clean                   # clean build artifacts
+make distclean               # remove all generated files
+```
 
-make newspaper -j N # process specific newspaper/year pairs in parallel typically for testing
+## Processing options
 
-make collection  MAKE_PARALLEL_OPTION=16   #  process all newspapers using parallel processing within newspaper/year pairs
+For newspaper processing, several options are available:
+
+```sh
+# Process with specific parallelism
+make newspaper MAKE_PARALLEL_OPTION=16
+
+# Process specific newspapers
+make newspaper NEWSPAPERS="GDL IMP"
+
+# Process specific years
+make newspaper YEARS="1900 1901"
+
+# Combine options
+make newspaper NEWSPAPERS="GDL" YEARS="1900" MAKE_PARALLEL_OPTION=8
 ```
 
 ## Command-Line Options for `spacy_linguistic_processing.py`
 
-The `spacy_linguistic_processing.py` script supports several command-line options:
+The `lib/spacy_linguistic_processing.py` script supports several command-line options:
 
 - `--lid`: Path to the language identification file.
 - `--language`: Specify a language code to use for all items.
@@ -100,6 +113,12 @@ The `spacy_linguistic_processing.py` script supports several command-line option
 - `--quit-if-s3-output-exists`: Quit if the output file already exists in the specified S3 bucket.
 - `--s3-output-path`: S3 path to upload the output file after processing or check if it already exists.
 - `--keep-timestamp-only`: After uploading to S3, keep only the timestamp of the local output file for data efficiency.
+
+## Build System Structure
+
+The build system is organized into several make include files:
+
+- `config.local.mk`: Local configuration overrides (not in the repository)
 
 # Uploading to impresso S3 bucket
 
