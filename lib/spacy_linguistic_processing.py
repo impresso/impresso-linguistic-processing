@@ -450,7 +450,7 @@ class LinguisticProcessing:
                 return None
 
         if lang not in LANG2MODEL:
-            log.error("No spacy model for language %s: content item: %s", lang, docid)
+            log.warning("No spacy model for language %s: content item: %s", lang, docid)
             return None
 
         if lang not in self.language_proc_units:
