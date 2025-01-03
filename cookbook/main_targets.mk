@@ -37,7 +37,7 @@ PARALLEL_NEWSPAPERS ?= 2
 collection: newspaper-list-target
 	tr " " "\n" < $(NEWSPAPERS_TO_PROCESS_FILE) | \
 	xargs -n 1 -P $(PARALLEL_NEWSPAPERS) -I {} \
-		$(MAKE) NEWSPAPER={} all 
+		$(MAKE) NEWSPAPER={} -k all 
 
 # Alternative implementation using GNU parallel
 # collection: newspaper-list-target
