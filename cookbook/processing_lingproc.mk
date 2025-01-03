@@ -86,7 +86,7 @@ $(OUT_LOCAL_PATH_LINGPROC)/%.jsonl.bz2: $(IN_LOCAL_PATH_REBUILT)/%.jsonl.bz2.sta
             $(call local_to_s3,$@,.stamp).log.gz \
             --upload-file $@.log.gz \
 			--force-overwrite ; \
-    elif [ $$EXIT_CODE -eq 3]; then \
+    elif [ $$EXIT_CODE -eq 3 ] ; then \
         echo "Processing skipped (output exists on S3). Not uploading logfile." ; \
         rm -f $@ ; \
         exit 0 ; \
