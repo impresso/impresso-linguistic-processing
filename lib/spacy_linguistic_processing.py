@@ -123,7 +123,12 @@ def analyze_title_in_text(title: str, full_text: str) -> Dict[str, bool]:
         "advertisement": None,
     }
     # Check for "UNKNOWN" or "UNTITLED" in title
-    if title.strip().upper() in {"UNKNOWN", "UNTITLED"}:
+    if title.strip().upper() in {
+        "UNKNOWN",
+        "UNTITLED",
+        "UNTITLED ARTICLE",
+        "UNTITLED AD",
+    }:
         analysis["unknown"] = True
         return analysis
 
