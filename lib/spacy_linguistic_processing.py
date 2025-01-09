@@ -131,11 +131,6 @@ def analyze_title_in_text(title: str, full_text: str) -> Dict[str, bool]:
         analysis["advertisement"] = True
         return analysis
 
-    # Check if title is longer than full text
-    # We do not need to further analyze in this case
-    if len_title > len_full_text:
-        return analysis
-
     # Check for exact prefix match
     # there are rare cases where the actual title ends with ...
     # https://impresso-project.ch/app/issue/armeteufel-1911-06-04-a/view?p=1&articleId=i0010
@@ -147,9 +142,15 @@ def analyze_title_in_text(title: str, full_text: str) -> Dict[str, bool]:
     if title.endswith("..."):
         analysis["ellipsis"] = True
         title = title[:-3]
+        len_title = len(title)
 
     if full_text.startswith(title):
         analysis["exact_prefix"] = True
+        return analysis
+
+    # Check if title is longer than full text
+    # We do not need to further analyze in this case
+    if len_title > len_full_text:
         return analysis
 
     alphanum_title = "".join(c for c in title if c.isalnum())
