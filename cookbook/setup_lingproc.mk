@@ -28,7 +28,7 @@ endif
 setup:
 	# Create the local directory
 	mkdir -p $(LOCAL_PATH_REBUILT)
-	mkdir -p $(OUT_LOCAL_PATH_LINGPROC)
+	mkdir -p $(LOCAL_PATH_LINGPROC)
 	$(MAKE) newspaper-list-target
 	$(MAKE) check-spacy-pipelines
 
