@@ -6,7 +6,6 @@
 $(call log.debug, COOKBOOK BEGIN INCLUDE: cookbook/paths_rebuilt.mk)
 
 # Variable naming conventions:
-# - Input paths start with IN_
 # - S3 paths use _S3_ prefix
 # - Local paths use _LOCAL_ prefix
 
