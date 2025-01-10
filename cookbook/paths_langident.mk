@@ -17,11 +17,11 @@ PROCESS_SUBTYPE_LABEL_LANGINDENT ?=
   $(call log.debug, PROCESS_SUBTYPE_LABEL_LANGINDENT)
 
 # @FIX NOT USED  s3://42-processed-data-final/langident/langident_v1-4-4/ACI/ACI-1832.jsonl.bz2
-IN_TASK ?=
+TASK_LANGINDENT ?=
 
 
 # @FIX s3://42-processed-data-final/langident/langident_v1-4-4/ACI/ACI-1832.jsonl.bz2
-IN_MODEL_ID ?= 
+MODEL_ID_LANGINDENT ?= 
 
 RUN_VERSION_LANGINDENT ?= v1-4-4
   $(call log.debug, RUN_VERSION_LANGINDENT)
