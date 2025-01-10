@@ -62,7 +62,7 @@ lingproc-target: $(LOCAL_LINGPROC_FILES)
 
 # Rule to process a single newspaper
 # Note: we need to unset the errexit SHELL flag to be able to communicate the exit code of the processing script
-$(OUT_LOCAL_PATH_LINGPROC)/%.jsonl.bz2: $(IN_LOCAL_PATH_REBUILT)/%.jsonl.bz2.stamp $(IN_LOCAL_PATH_LANGIDENT)/%.jsonl.bz2
+$(OUT_LOCAL_PATH_LINGPROC)/%.jsonl.bz2: $(IN_LOCAL_PATH_REBUILT)/%.jsonl.bz2.stamp $(LOCAL_PATH_LANGIDENT)/%.jsonl.bz2
 	$(MAKE_SILENCE_RECIPE) \
 	mkdir -p $(@D) && \
 	{  set +e ; \

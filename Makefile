@@ -107,7 +107,7 @@ include cookbook/newspaper_list.mk
 include cookbook/input_paths_rebuilt.mk
 
 # Load input path definitions for language identification
-include cookbook/input_paths_langident.mk
+include cookbook/paths_langident.mk
 
 # Load output path definitions for linguistic processing
 include cookbook/output_paths_lingproc.mk 
