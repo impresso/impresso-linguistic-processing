@@ -551,7 +551,7 @@ class LinguisticProcessing:
             i,
         )
 
-        for k in self.stats:
+        for k in sorted(self.stats):
             log.info("%s: %d", k, self.stats[k])
         log.info("File %s successfully processed locally.", infile)
 
