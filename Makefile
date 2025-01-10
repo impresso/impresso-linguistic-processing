@@ -110,7 +110,7 @@ include cookbook/paths_rebuilt.mk
 include cookbook/paths_langident.mk
 
 # Load output path definitions for linguistic processing
-include cookbook/output_paths_lingproc.mk 
+include cookbook/paths_lingproc.mk 
 
 # Load general setup
 include cookbook/setup.mk
