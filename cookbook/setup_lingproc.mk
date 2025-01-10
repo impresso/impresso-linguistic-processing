@@ -27,7 +27,7 @@ endif
 # Prepares local directories and validates dependencies
 setup:
 	# Create the local directory
-	mkdir -p $(IN_LOCAL_PATH_REBUILT)
+	mkdir -p $(LOCAL_PATH_REBUILT)
 	mkdir -p $(OUT_LOCAL_PATH_LINGPROC)
 	$(MAKE) newspaper-list-target
 	$(MAKE) check-spacy-pipelines

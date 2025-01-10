@@ -104,7 +104,7 @@ PHONY_TARGETS += help
 include cookbook/newspaper_list.mk
 
 # Load input path definitions for rebuilt content
-include cookbook/input_paths_rebuilt.mk
+include cookbook/paths_rebuilt.mk
 
 # Load input path definitions for language identification
 include cookbook/paths_langident.mk

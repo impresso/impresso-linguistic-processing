@@ -3,7 +3,7 @@
 # Defines paths and variables for accessing rebuilt newspaper content from S3
 ###############################################################################
 
-$(call log.debug, COOKBOOK BEGIN INCLUDE: cookbook/input_paths_rebuilt.mk)
+$(call log.debug, COOKBOOK BEGIN INCLUDE: cookbook/paths_rebuilt.mk)
 
 # Variable naming conventions:
 # - Input paths start with IN_
@@ -11,16 +11,16 @@ $(call log.debug, COOKBOOK BEGIN INCLUDE: cookbook/input_paths_rebuilt.mk)
 # - Local paths use _LOCAL_ prefix
 
 # The input bucket for rebuilt content
-IN_S3_BUCKET_REBUILT ?= 22-rebuilt-final
-  $(call log.debug, IN_S3_BUCKET_REBUILT)
+S3_BUCKET_REBUILT ?= 22-rebuilt-final
+  $(call log.debug, S3_BUCKET_REBUILT)
 
 # The input path
-IN_S3_PATH_REBUILT := s3://$(IN_S3_BUCKET_REBUILT)/$(NEWSPAPER)
-  $(call log.debug, IN_S3_PATH_REBUILT)
+S3_PATH_REBUILT := s3://$(S3_BUCKET_REBUILT)/$(NEWSPAPER)
+  $(call log.debug, S3_PATH_REBUILT)
 
 # The local path
-IN_LOCAL_PATH_REBUILT := $(BUILD_DIR)/$(IN_S3_BUCKET_REBUILT)/$(NEWSPAPER)
-  $(call log.debug, IN_LOCAL_PATH_REBUILT)
+LOCAL_PATH_REBUILT := $(BUILD_DIR)/$(S3_BUCKET_REBUILT)/$(NEWSPAPER)
+  $(call log.debug, LOCAL_PATH_REBUILT)
 
 
-$(call log.debug, COOKBOOK END INCLUDE: cookbook/input_paths_rebuilt.mk)
+$(call log.debug, COOKBOOK END INCLUDE: cookbook/paths_rebuilt.mk)
