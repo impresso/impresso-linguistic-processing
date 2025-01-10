@@ -19,7 +19,7 @@ sync-input-rebuilt: $(IN_LOCAL_REBUILT_SYNC_STAMP_FILE)
 PHONY_TARGETS += sync-input-rebuilt
 
 # The local per-newspaper synchronization file stamp for the processed input data: What is on S3 has been synced?
-IN_LOCAL_LANGIDENT_SYNC_STAMP_FILE := $(IN_LOCAL_PATH_LANGIDENT).last_synced
+IN_LOCAL_LANGIDENT_SYNC_STAMP_FILE := $(LOCAL_PATH_LANGIDENT).last_synced
   $(call log.debug, IN_LOCAL_LANGIDENT_SYNC_STAMP_FILE)
 
 # the suffix of for the local stamp files (added to the input paths on s3)
