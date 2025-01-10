@@ -641,7 +641,7 @@ def setup_logging(log_level: str = "INFO", log_file: Optional[Path] = None) -> N
 
     logging.basicConfig(
         level=log_level,
-        format="%(asctime)s %(levelname)s: %(message)s",
+        format="%(asctime)-15s %(filename)s:%(lineno)d %(levelname)s: %(message)s",
         handlers=handlers,
         force=True,
     )
