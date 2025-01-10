@@ -11,10 +11,10 @@ sync-input:: sync-input-rebuilt
 PHONY_TARGETS += sync-input
 
 # Local synchronization stamp file for rebuilt input data
-IN_LOCAL_REBUILT_SYNC_STAMP_FILE := $(LOCAL_PATH_REBUILT).last_synced
-  $(call log.debug, IN_LOCAL_REBUILT_SYNC_STAMP_FILE)
+LOCAL_REBUILT_SYNC_STAMP_FILE := $(LOCAL_PATH_REBUILT).last_synced
+  $(call log.debug, LOCAL_REBUILT_SYNC_STAMP_FILE)
 
-sync-input-rebuilt: $(IN_LOCAL_REBUILT_SYNC_STAMP_FILE)
+sync-input-rebuilt: $(LOCAL_REBUILT_SYNC_STAMP_FILE)
 
 PHONY_TARGETS += sync-input-rebuilt
 
@@ -23,8 +23,8 @@ LOCAL_LANGIDENT_SYNC_STAMP_FILE := $(LOCAL_PATH_LANGIDENT).last_synced
   $(call log.debug, LOCAL_LANGIDENT_SYNC_STAMP_FILE)
 
 # the suffix of for the local stamp files (added to the input paths on s3)
-IN_LOCAL_REBUILT_STAMP_SUFFIX ?= .stamp
-  $(call log.debug, IN_LOCAL_REBUILT_STAMP_SUFFIX)
+LOCAL_REBUILT_STAMP_SUFFIX ?= .stamp
+  $(call log.debug, LOCAL_REBUILT_STAMP_SUFFIX)
 
 # Rule to sync the input data from the S3 bucket to the local directory
 $(LOCAL_PATH_REBUILT).last_synced:
@@ -32,7 +32,7 @@ $(LOCAL_PATH_REBUILT).last_synced:
 	python lib/s3_to_local_stamps.py \
 	   $(S3_PATH_REBUILT) \
 	   --local-dir $(BUILD_DIR) \
-	   --stamp-extension $(IN_LOCAL_REBUILT_STAMP_SUFFIX) \
+	   --stamp-extension $(LOCAL_REBUILT_STAMP_SUFFIX) \
 	   --logfile $@.log.gz && \
 	touch $@
 

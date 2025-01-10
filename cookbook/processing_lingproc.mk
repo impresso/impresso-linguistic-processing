@@ -39,12 +39,12 @@ LINGPROC_QUIET_OPTION ?=
 # variable for all locally available rebuilt stamp files. Needed for dependency tracking
 # of the build process. We discard errors as the path or file might not exist yet.
 LOCAL_REBUILT_STAMP_FILES := \
-    $(shell ls -r $(LOCAL_PATH_REBUILT)/*.jsonl.bz2$(IN_LOCAL_REBUILT_STAMP_SUFFIX) 2> /dev/null \
+    $(shell ls -r $(LOCAL_PATH_REBUILT)/*.jsonl.bz2$(LOCAL_REBUILT_STAMP_SUFFIX) 2> /dev/null \
     | $(if $(NEWSPAPER_YEAR_SORTING),$(NEWSPAPER_YEAR_SORTING),cat))
   $(call log.debug, LOCAL_REBUILT_STAMP_FILES)
 
 define local_rebuilt_to_lingproc_file
-$(1:$(LOCAL_PATH_REBUILT)/%.jsonl.bz2$(IN_LOCAL_REBUILT_STAMP_SUFFIX)=$(LOCAL_PATH_LINGPROC)/%.jsonl.bz2)
+$(1:$(LOCAL_PATH_REBUILT)/%.jsonl.bz2$(LOCAL_REBUILT_STAMP_SUFFIX)=$(LOCAL_PATH_LINGPROC)/%.jsonl.bz2)
 endef
 
 
