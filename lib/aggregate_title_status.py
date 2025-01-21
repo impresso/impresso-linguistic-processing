@@ -146,7 +146,7 @@ def main():
         "s3_path", type=str, help="S3 path in the format s3://bucket/prefix"
     )
     args = parser.parse_args()
-
+    logging.warning("Starting aggregation %s", args)
     bucket, prefix = parse_s3_path(args.s3_path)
 
 
