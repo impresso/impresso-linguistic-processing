@@ -78,6 +78,7 @@ def read_title_status_from_s3(bucket, key):
     decompressed_data = bz2.decompress(compressed_data).decode("utf-8")
 
     title_status = init_counter()
+    year = None
     for line in decompressed_data.splitlines():
         record = json.loads(line)
         status = {}
@@ -113,7 +114,9 @@ def read_title_status_from_s3(bucket, key):
                         f"Title longer ({diff} chars):"
                         f" https://impresso-project.ch/app/article/{record['ci_id']} "
                     )
-
+    if year is None:
+        # file was empty
+        return {}
     result = {"year": year, "newspaper": newspaper}
     result.update(title_status)
     return {"year": result}
@@ -121,11 +124,11 @@ def read_title_status_from_s3(bucket, key):
 
 def aggregate_title_status(bucket, prefix):
     files = list_s3_files(bucket, prefix)
-    aggregated_status = defaultdict(lambda: defaultdict(int))
 
     for key in files:
         title_status = read_title_status_from_s3(bucket, key)
-        print(json.dumps(title_status))
+        if title_status:
+            print(json.dumps(title_status))
 
 
 def parse_s3_path(s3_path):
@@ -145,11 +148,6 @@ def main():
     args = parser.parse_args()
 
     bucket, prefix = parse_s3_path(args.s3_path)
-
-    aggregated_status = aggregate_title_status(bucket, prefix)
-
-    # for year, statuses in sorted(aggregated_status.items()):
-    #    print(json.dumps(f"{year}: {dict(statuses)}"))
 
 
 if __name__ == "__main__":
