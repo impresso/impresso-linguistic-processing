@@ -148,6 +148,7 @@ def main():
     args = parser.parse_args()
     logging.warning("Starting aggregation %s", args)
     bucket, prefix = parse_s3_path(args.s3_path)
+    aggregate_title_status(bucket, prefix)
 
 
 if __name__ == "__main__":
