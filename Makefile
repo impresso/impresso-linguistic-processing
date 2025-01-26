@@ -163,4 +163,4 @@ include cookbook/processing_lingproc.mk
 include cookbook/local_to_s3.mk
 
 # Include testing and inspection utilities
-include cookbook/test_eyeball_lingproc.mk
+include cookbook-repo-addons/test_eyeball_lingproc.mk
