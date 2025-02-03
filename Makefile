@@ -22,7 +22,8 @@ export SHELLOPTS := errexit:pipefail
 
 # A variable for representing an empty string
 EMPTY :=
-  $(call log.debug, EMPTY)
+#  we cannot use log.debug here because it is not defined yet.
+#  $(call log.debug, EMPTY)
 
 ###
 # SETTINGS FOR THE BUILD PROCESS
@@ -135,6 +136,9 @@ PHONY_TARGETS += sync
 
 # Include synchronization rules for rebuilt content
 include cookbook/sync_rebuilt.mk
+
+# Include synchronization rules for langident content
+include cookbook/sync_langident.mk
 
 # Include synchronization rules for linguistic processing output
 include cookbook/sync_lingproc.mk
