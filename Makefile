@@ -129,10 +129,7 @@ include cookbook/main_targets.mk
 # SYNCHRONIZATION TARGETS
 #------------------------------------------------------------------------------
 
-# Synchronize both input and output data with S3
-sync: sync-input sync-output
-
-PHONY_TARGETS += sync
+include cookbook/sync.mk
 
 # Include synchronization rules for rebuilt content
 include cookbook/sync_rebuilt.mk
@@ -150,6 +147,8 @@ include cookbook/clean.mk
 ###
 # PROCESSING TARGETS
 #------------------------------------------------------------------------------
+# General processing options
+include cookbook/processing.mk
 
 # Include main linguistic processing rules
 include cookbook/processing_lingproc.mk
