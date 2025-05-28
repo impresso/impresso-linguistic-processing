@@ -298,6 +298,7 @@ LANG2MODEL = {
     "fr": "fr_core_news_md",
     "en": "en_core_web_md",
     "lb": "./models/lb_model/model-best/",
+    "es": "es_core_news_md",
 }
 
 
@@ -409,7 +410,7 @@ class LinguisticProcessing:
 
         full_text_len = len(full_text)
 
-        title_text = json_obj.get("t")
+        title_text = json_obj.get("t", json_obj.get("title"))
         if title_text:
             self.stats["CONTENT-ITEMS-WITH-TITLE"] += 1
         else:

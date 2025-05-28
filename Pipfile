@@ -16,6 +16,7 @@ spacy-lookups-data = "*"
 de-core-news-md = {file = "https://github.com/explosion/spacy-models/releases/download/de_core_news_md-3.6.0/de_core_news_md-3.6.0.tar.gz"}
 fr-core-news-md = {file = "https://github.com/explosion/spacy-models/releases/download/fr_core_news_md-3.6.0/fr_core_news_md-3.6.0.tar.gz"}
 en-core-web-md = {file = "https://github.com/explosion/spacy-models/releases/download/en_core_web_md-3.6.0/en_core_web_md-3.6.0.tar.gz"}
+es-core-news-md = {file = "https://github.com/explosion/spacy-models/releases/download/es_core_news_md-3.6.0/es_core_news_md-3.6.0.tar.gz"}
 boto3 = "*"
 jsonschema = "*"
 numpy = "==1.26.*"
