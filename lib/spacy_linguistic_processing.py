@@ -750,6 +750,7 @@ def parse_arguments(args: Optional[Sequence[str]] = None) -> argparse.Namespace:
     if options.s3_output_dry_run:
         options.keep_timestamp_only = False
         options.quit_if_s3_output_exists = False
+    logging.info("Called with args: %s", options)
     return options
 
 
