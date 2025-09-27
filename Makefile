@@ -153,7 +153,8 @@ include cookbook/processing.mk
 # Include main linguistic processing rules
 include cookbook/processing_lingproc.mk
 
-
+# Include aggregation rules for linguistic processing
+include cookbook/aggregators_lingproc.mk
 
 ###
 # FINAL DECLARATIONS AND UTILITIES
