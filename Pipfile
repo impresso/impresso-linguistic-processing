@@ -20,7 +20,8 @@ es-core-news-md = {file = "https://github.com/explosion/spacy-models/releases/do
 boto3 = "==1.35.95"
 jsonschema = "*"
 numpy = "==1.26.*"
-
+jq = "*"
+impresso-cookbook = {editable = true, path = "./cookbook/lib",version="1.0.3"}
 [requires]
 python_version = "3.11"
 
