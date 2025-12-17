@@ -1,10 +1,17 @@
-# adapt any variable 
-LOGGING_LEVEL := DEBUG
-S3_BUCKET_LINGPROC := 142-processed-data-final
+
+USE_CANONICAL ?= 1
+NEWSPAPER_HAS_PROVIDER ?= 1
+LOGGING_LEVEL ?= DEBUG
+SHELL ?= /bin/bash 
+S3_BUCKET_REBUILT ?= 121-rebuilt-staging
+LINGPROC_LANGIDENT_NEEDED ?= 0
+NEWSPAPER_FNMATCH ?= BL/*
+
+S3_BUCKET_LINGPROC ?= 140-processed-data-sandbox
 RUN_VERSION_LINGPROC ?= v1-0-3
-MAKE_PARALLEL_PROCESSING_NEWSPAPER_YEAR ?= 2
-PARALLEL_NEWSPAPERS ?= 6
-NEWSPAPER ?= RDN
+S3_PREFIX_NEWSPAPERS_TO_PROCESS_BUCKET ?= 112-canonical-final
+MAKE_SILENCE_RECIPE ?= $(EMPTY)
+NEWSPAPER ?= BL/WTCH
 #LINGPROC_KEEP_TIMESTAMP_ONLY_OPTION :=
 LOGGING_LEVEL ?= INFO
 #NEWSPAPER_YEAR_SORTING ?= shuf | head -n 1 
@@ -15,8 +22,6 @@ LINGPROC_LANGIDENT_NEEDED ?= 0
 #LINGPROC_VALIDATE_OPTION := 
 # Sample configuration for local build settings
 
-# # Specify the newspaper to process. Just a suffix appended to the s3 bucket name
-# NEWSPAPER ?= onsjongen
 
 # # Set the logging level: DEBUG, INFO, WARNING, ERROR
 # LOGGING_LEVEL ?= INFO
